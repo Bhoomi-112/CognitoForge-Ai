@@ -1,14 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable the App Router (top-level option in newer Next.js)
+  appDir: true,
+
   // Performance optimizations
   swcMinify: true,
-  compiler: {
-    // Remove console.logs in production
-    removeConsole: process.env.NODE_ENV === "production",
-  },
-  
+
+  // NOTE: `compiler.removeConsole` was removed because Turbopack
+  // does not support that option. If you need to strip console
+  // calls in production you can use a build-time plugin or run
+  // a production build with proper minification.
+
   experimental: {
-    appDir: true,
     // Enable modern bundling optimizations
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },

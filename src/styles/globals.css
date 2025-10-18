@@ -1,9 +1,9 @@
+/* Import optimized purple theme - must come before other rules */
+@import './optimized.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import optimized purple theme */
-@import './optimized.css';
 
 :root {
   --background: 0 0% 0%;            /* Pure black background */
