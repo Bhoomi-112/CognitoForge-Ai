@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 import '../styles/globals.css';
 import { HealthCheck } from '@/components/HealthCheck';
+import { AuthProvider } from '@/components/auth';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,10 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background antialiased">
-          {children}
-          <HealthCheck />
-        </div>
+        <AuthProvider>
+          <div className="min-h-screen bg-background antialiased">
+            {children}
+            <HealthCheck />
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );

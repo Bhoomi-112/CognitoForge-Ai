@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { ToastContainer, useToast } from '@/components/ui/toast';
 import { uploadRepository, startAnalysis, getLatestReport } from '@/lib/api';
 import { validateRepoUrl, validateAnalysisType, combineValidationResults } from '@/lib/validation';
+import { ProtectedRoute, UserProfile } from '@/components/auth';
+import { WelcomeDashboard } from '@/components/WelcomeDashboard';
+import { useAuth0 } from '@auth0/auth0-react';
 import {
   Shield,
   GitBranch,
@@ -38,7 +41,7 @@ interface Vulnerability {
 }
 
 function DemoHeader() {
-  const { user } = useUser();
+  const { user } = useAuth0();
   
   return (
     <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -52,16 +55,7 @@ function DemoHeader() {
             <span className="text-muted-foreground">Security Analysis Demo</span>
           </div>
           
-          {user && (
-            <div className="flex items-center gap-3">
-              <img
-                src={user.picture}
-                alt={user.name || 'User'}
-                className="h-8 w-8 rounded-full border border-border"
-              />
-              <span className="text-sm font-medium">{user.name}</span>
-            </div>
-          )}
+          {user && <UserProfile />}
         </div>
       </div>
     </header>
@@ -425,10 +419,10 @@ function SecurityReport({
   );
 }
 
-type DemoPage = 'input' | 'analysis' | 'report';
+type DemoPage = 'welcome' | 'input' | 'analysis' | 'report';
 
 export default function DemoPage() {
-  const [currentPage, setCurrentPage] = useState<DemoPage>('input');
+  const [currentPage, setCurrentPage] = useState<DemoPage>('welcome');
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -506,54 +500,71 @@ export default function DemoPage() {
   };
 
   const startNewAnalysis = () => {
-    setCurrentPage('input');
+    setCurrentPage('welcome');
     setAnalysisSteps([]);
     setProgress(0);
     setIsLoading(false);
-    showInfo('New Analysis', 'Ready to analyze another repository');
+    showSuccess('Analysis Reset', 'Ready to start a new security analysis');
+  };
+
+  const goToInputForm = () => {
+    setCurrentPage('input');
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <DemoHeader />
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      
-      <main className="container mx-auto px-4 py-8">
-        <AnimatePresence mode="wait">
-          {currentPage === 'input' && (
-            <motion.div
-              key="input"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <RepoInputForm onSubmit={startAnalysis} isLoading={isLoading} />
-            </motion.div>
-          )}
-          
-          {currentPage === 'analysis' && (
-            <motion.div
-              key="analysis"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <AnalysisProgress steps={analysisSteps} progress={progress} />
-            </motion.div>
-          )}
-          
-          {currentPage === 'report' && (
-            <motion.div
-              key="report"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <SecurityReport onNewAnalysis={startNewAnalysis} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
+        <DemoHeader />
+        <ToastContainer toasts={toasts} onClose={closeToast} />
+        
+        <main className="container mx-auto px-4 py-8">
+          <AnimatePresence mode="wait">
+            {currentPage === 'welcome' && (
+              <motion.div
+                key="welcome"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <WelcomeDashboard onStartAnalysis={goToInputForm} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'input' && (
+              <motion.div
+                key="input"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <RepoInputForm onSubmit={startAnalysis} isLoading={isLoading} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'analysis' && (
+              <motion.div
+                key="analysis"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <AnalysisProgress steps={analysisSteps} progress={progress} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'report' && (
+              <motion.div
+                key="report"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <SecurityReport onNewAnalysis={startNewAnalysis} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }

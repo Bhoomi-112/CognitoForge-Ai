@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable the App Router (top-level option in newer Next.js)
-  appDir: true,
-
   // Performance optimizations
   swcMinify: true,
 

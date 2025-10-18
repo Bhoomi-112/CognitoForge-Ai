@@ -2,7 +2,7 @@
 // API service for backend communication
 
 // Get backend URL from environment variable with fallback
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 /**
  * Base API configuration
@@ -34,20 +34,49 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * Generic API request wrapper with error handling
+ * Get Auth0 access token (to be called from components with useAuth0)
+ * This is a helper that components can use to get tokens
+ */
+export let getAccessToken: (() => Promise<string>) | null = null;
+
+/**
+ * Set the token getter function (called by Auth0Provider)
+ */
+export function setTokenGetter(getter: () => Promise<string>) {
+  getAccessToken = getter;
+}
+
+/**
+ * Generic API request wrapper with error handling and Auth0 token support
  */
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  includeAuth: boolean = true
 ): Promise<ApiResponse<T>> {
   const url = `${BASE_URL}${endpoint}`;
   
+  const headers: Record<string, string> = {
+    ...(apiConfig.headers as Record<string, string>),
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add Auth0 token if available and requested
+  if (includeAuth && getAccessToken) {
+    try {
+      const token = await getAccessToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get access token:', error);
+      // Continue without token - some endpoints may not require auth
+    }
+  }
+  
   const config: RequestInit = {
     ...options,
-    headers: {
-      ...apiConfig.headers,
-      ...options.headers,
-    },
+    headers,
   };
 
   try {
@@ -73,7 +102,7 @@ async function apiRequest<T>(
 }
 
 /**
- * Health check endpoint
+ * Health check endpoint (no auth required)
  */
 export async function healthCheck(): Promise<ApiResponse<{ status: string; message?: string }>> {
   try {
@@ -104,7 +133,7 @@ export async function healthCheck(): Promise<ApiResponse<{ status: string; messa
 }
 
 /**
- * Upload repository for analysis
+ * Upload repository for analysis (requires auth)
  */
 export async function uploadRepository(repoUrl: string, analysisType: string): Promise<ApiResponse<{ repoId: string; message: string }>> {
   return apiRequest('/api/upload', {
@@ -113,11 +142,11 @@ export async function uploadRepository(repoUrl: string, analysisType: string): P
       repoUrl,
       analysisType,
     }),
-  });
+  }, true); // Include auth token
 }
 
 /**
- * Start security analysis simulation
+ * Start security analysis simulation (requires auth)
  */
 export async function startAnalysis(repoId: string, config: any): Promise<ApiResponse<{ analysisId: string; status: string }>> {
   return apiRequest('/api/simulate', {
@@ -126,37 +155,51 @@ export async function startAnalysis(repoId: string, config: any): Promise<ApiRes
       repoId,
       config,
     }),
-  });
+  }, true); // Include auth token
 }
 
 /**
- * Get latest analysis report
+ * Get latest analysis report (requires auth)
  */
 export async function getLatestReport(repoId?: string): Promise<ApiResponse<any>> {
   const endpoint = repoId ? `/api/reports/${repoId}` : '/api/reports/latest';
   return apiRequest(endpoint, {
     method: 'GET',
-  });
+  }, true); // Include auth token
 }
 
 /**
- * Get analysis status
+ * Get analysis status (requires auth)
  */
 export async function getAnalysisStatus(analysisId: string): Promise<ApiResponse<{ status: string; progress: number }>> {
   return apiRequest(`/api/analysis/${analysisId}/status`, {
     method: 'GET',
-  });
+  }, true); // Include auth token
 }
 
 /**
- * Download analysis report
+ * Download analysis report (requires auth)
  */
 export async function downloadReport(reportId: string, format: 'pdf' | 'json' = 'pdf') {
+  const headers: HeadersInit = {
+    'Accept': format === 'pdf' ? 'application/pdf' : 'application/json',
+  };
+
+  // Add auth token if available
+  if (getAccessToken) {
+    try {
+      const token = await getAccessToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get access token for download:', error);
+    }
+  }
+
   const response = await fetch(`${BASE_URL}/api/reports/${reportId}/download?format=${format}`, {
     method: 'GET',
-    headers: {
-      'Accept': format === 'pdf' ? 'application/pdf' : 'application/json',
-    },
+    headers,
   });
   
   if (!response.ok) {
