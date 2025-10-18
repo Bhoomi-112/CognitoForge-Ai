@@ -1,6 +1,6 @@
 # CognitoForge Labs Backend
 
-FastAPI skeleton for the CognitoForge Labs hackathon project (AI-driven DevSecOps red team simulator).
+FastAPI backend powering the CognitoForge Labs hackathon project (AI-driven DevSecOps red team simulator).
 
 ## Quick start
 
@@ -24,8 +24,8 @@ FastAPI skeleton for the CognitoForge Labs hackathon project (AI-driven DevSecOp
 
 ## Project layout
 
-- `app/main.py` – FastAPI instance with CORS and router wiring.
-- `app/routers/operations.py` – REST endpoints for repository upload, attack simulation, and report fetching.
+- `app/main.py` – FastAPI instance with CORS, health check, and router wiring.
+- `app/routers/operations.py` – REST endpoints for repository upload, attack simulation, reporting, and simulation history.
 - `app/services/` – Service layer stubs for Gemini, sandbox execution, and mock Snowflake queries.
 - `app/models/schemas.py` – Shared Pydantic models used across routers and services.
 - `app/data/vulnerabilities.json` – Mock vulnerability database seeded with three CVE examples.
@@ -49,16 +49,37 @@ curl http://127.0.0.1:8000/health
 
 # Upload a repository reference
 curl -X POST http://127.0.0.1:8000/upload_repo \
-   -H "Content-Type: application/json" \
-   -d '{"repo_id":"demo-repo","repo_url":"https://github.com/example/repo"}'
+  -H "Content-Type: application/json" \
+  -d '{"repo_id":"demo-repo","repo_url":"https://github.com/example/repo"}'
 
 # Simulate an attack and persist the results
 curl -X POST http://127.0.0.1:8000/simulate_attack \
-   -H "Content-Type: application/json" \
-   -d '{"repo_id":"demo-repo"}'
+  -H "Content-Type: application/json" \
+  -d '{"repo_id":"demo-repo"}'
 
 # Fetch the latest summary report for that repo
 curl http://127.0.0.1:8000/reports/demo-repo/latest
 ```
 
 Run `python smoke_test.py` for an automated version of the same workflow.
+
+---
+
+## Frontend prototype (Next.js)
+
+The repository also contains a static prototype for the CognitoForge frontend (Next.js 14 + Auth0). Key locations:
+
+- `src/app/` – App Router pages and Auth0 routes
+- `src/components/` – UI, layout, auth, and feature components
+- `src/styles/` – Global styling helpers
+
+To explore the prototype quickly:
+
+```bash
+npm install
+cp .env.local.example .env.local  # Add Auth0 secrets here
+npm run dev
+# Open http://localhost:3000
+```
+
+Refer to `docs/SETUP.md` and `docs/AUTH0_SETUP.md` for deeper frontend guidance.
