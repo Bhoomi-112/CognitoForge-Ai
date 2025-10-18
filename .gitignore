@@ -18,6 +18,7 @@ coverage
 
 # Next.js build outputs
 /.next/
+frontend/.next/
 /out/
 .next-analyze/
 next-env.d.ts

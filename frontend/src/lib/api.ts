@@ -1,4 +1,4 @@
-// filepath: c:\workspace\CognitoForge-Ai\src\lib\api.ts
+// filepath: frontend/src/lib/api.ts
 // API service for backend communication
 
 // Get backend URL from environment variable with fallback

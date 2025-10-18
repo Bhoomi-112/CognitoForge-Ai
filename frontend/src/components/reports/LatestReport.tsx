@@ -1,4 +1,4 @@
-// filepath: c:\workspace\CognitoForge-Ai\src\components\reports\LatestReport.tsx
+// filepath: frontend/src/components/reports/LatestReport.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

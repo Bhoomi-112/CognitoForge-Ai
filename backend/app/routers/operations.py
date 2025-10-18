@@ -20,7 +20,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.models.schemas import (
+from backend.app.models.schemas import (
     AttackPlan,
     RepoUpload,
     SimulationRun,
@@ -28,10 +28,10 @@ from app.models.schemas import (
     SimulationSummary,
     VulnerabilityReport,
 )
-from app.services.gemini_service import generate_attack_plan
-from app.services.sandbox_service import run_sandbox_simulation
-from app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
-from app.utils.storage import (
+from backend.app.services.gemini_service import generate_attack_plan
+from backend.app.services.sandbox_service import run_sandbox_simulation
+from backend.app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
+from backend.app.utils.storage import (
     SimulationDataError,
     SimulationNotFoundError,
     ensure_simulation_dir,

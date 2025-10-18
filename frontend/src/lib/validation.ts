@@ -1,4 +1,4 @@
-// filepath: c:\workspace\CognitoForge-Ai\src\lib\validation.ts
+// filepath: frontend/src/lib/validation.ts
 
 /**
  * Validation utilities for forms

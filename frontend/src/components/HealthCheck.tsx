@@ -1,4 +1,4 @@
-// filepath: c:\workspace\CognitoForge-Ai\src\components\HealthCheck.tsx
+// filepath: frontend/src/components/HealthCheck.tsx
 'use client';
 
 import { useEffect, useState } from 'react';

@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import List
 
-from app.core.settings import get_settings
-from app.models.schemas import AttackPlan, AttackStep
+from backend.app.core.settings import get_settings
+from backend.app.models.schemas import AttackPlan, AttackStep
 
 logger = logging.getLogger(__name__)
 

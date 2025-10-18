@@ -9,7 +9,7 @@ from typing import List
 
 from pydantic import ValidationError
 
-from app.models.schemas import SimulationRun, SimulationSummary
+from backend.app.models.schemas import SimulationRun, SimulationSummary
 
 logger = logging.getLogger(__name__)
 

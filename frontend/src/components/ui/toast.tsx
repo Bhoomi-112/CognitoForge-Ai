@@ -1,4 +1,4 @@
-// filepath: c:\workspace\CognitoForge-Ai\src\components\ui\toast.tsx
+// filepath: frontend/src/components/ui/toast.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

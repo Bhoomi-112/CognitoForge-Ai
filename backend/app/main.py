@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.settings import get_settings
-from app.routers import operations
+from backend.app.core.settings import get_settings
+from backend.app.routers import operations
 
 settings = get_settings()
 

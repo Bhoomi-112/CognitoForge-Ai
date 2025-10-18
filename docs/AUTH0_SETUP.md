@@ -72,9 +72,9 @@ https://your-domain.com
 
 ### 5. Configure Environment Variables
 
-Create `.env.local` file:
+In the `frontend/` directory create `.env.local`:
 ```bash
-# Copy from .env.example and fill in your values
+# Copy from frontend/.env.local.example and fill in your values
 NEXT_PUBLIC_AUTH0_DOMAIN=your-domain.auth0.com
 NEXT_PUBLIC_AUTH0_CLIENT_ID=your-client-id
 NEXT_PUBLIC_AUTH0_AUDIENCE=https://your-domain.auth0.com/api/v2/

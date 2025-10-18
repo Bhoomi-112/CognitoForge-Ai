@@ -28,7 +28,11 @@ class Settings(BaseSettings):
         description="Toggle to enable real Gemini integration when credentials are available.",
     )
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="COGNITOFORGE_", extra="allow")
+    model_config = SettingsConfigDict(
+        env_file=(".env", "backend/.env"),
+        env_prefix="COGNITOFORGE_",
+        extra="allow",
+    )
 
 
 @lru_cache

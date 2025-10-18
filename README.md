@@ -1,15 +1,20 @@
-# CognitoForge Labs Backend
+# CognitoForge Labs
 
-FastAPI backend powering the CognitoForge Labs hackathon project (AI-driven DevSecOps red team simulator).
+Repo housing both sides of the CognitoForge Labs hackathon project:
 
-## Quick start
+- **Backend** – FastAPI API that powers AI-driven DevSecOps simulations.
+- **Frontend** – Next.js prototype for exploring mock attack reports.
+
+---
+
+## Backend (`backend/`)
 
 1. Create and activate a Python 3.11 virtual environment.
 2. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -r backend/requirements.txt
    ```
-3. (Optional) configure environment variables in a `.env` file:
+3. (Optional) configure environment variables in `backend/.env`:
    ```env
    COGNITOFORGE_AUTH0_DOMAIN=https://your-auth0-domain
    COGNITOFORGE_AUTH0_CLIENT_ID=client-id
@@ -19,25 +24,25 @@ FastAPI backend powering the CognitoForge Labs hackathon project (AI-driven DevS
    ```
 4. Launch the API server:
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn backend.app.main:app --reload
    ```
 
-## Project layout
+### Layout
 
-- `app/main.py` – FastAPI instance with CORS, health check, and router wiring.
-- `app/routers/operations.py` – REST endpoints for repository upload, attack simulation, reporting, and simulation history.
-- `app/services/` – Service layer stubs for Gemini, sandbox execution, and mock Snowflake queries.
-- `app/models/schemas.py` – Shared Pydantic models used across routers and services.
-- `app/data/vulnerabilities.json` – Mock vulnerability database seeded with three CVE examples.
-- `app/core/settings.py` – Environment-based configuration helper.
+- `backend/app/main.py` – FastAPI instance with CORS, health check, and router wiring.
+- `backend/app/routers/operations.py` – REST endpoints for repository upload, attack simulation, reporting, and simulation history.
+- `backend/app/services/` – Service layer stubs for Gemini, sandbox execution, and mock Snowflake queries.
+- `backend/app/models/schemas.py` – Shared Pydantic models used across routers and services.
+- `backend/app/data/vulnerabilities.json` – Mock vulnerability database seeded with three CVE examples.
+- `backend/app/core/settings.py` – Environment-based configuration helper.
 
-## Extending the stub
+### Extending the stub
 
-- Replace `app/services/gemini_service.py` with real calls to the Gemini API once credentials are available.
-- Wire the sandbox service to your containerised execution engine in `app/services/sandbox_service.py`.
-- Swap the mock Snowflake service with actual warehouse queries in `app/services/snowflake_service.py`.
+- Replace `backend/app/services/gemini_service.py` with real calls to the Gemini API once credentials are available.
+- Wire the sandbox service to your containerised execution engine in `backend/app/services/sandbox_service.py`.
+- Swap the mock Snowflake service with actual warehouse queries in `backend/app/services/snowflake_service.py`.
 
-## Testing the endpoints
+### Testing the endpoints
 
 After starting the server, open the interactive docs at `http://127.0.0.1:8000/docs` to experiment with the mock endpoints.
 
@@ -61,25 +66,31 @@ curl -X POST http://127.0.0.1:8000/simulate_attack \
 curl http://127.0.0.1:8000/reports/demo-repo/latest
 ```
 
-Run `python smoke_test.py` for an automated version of the same workflow.
+Run `python backend/smoke_test.py` for an automated version of the same workflow.
 
 ---
 
-## Frontend prototype (Next.js)
+## Frontend (`frontend/`)
 
-The repository also contains a static prototype for the CognitoForge frontend (Next.js 14 + Auth0). Key locations:
+1. Install dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Configure Auth0 (optional) by copying the example env file:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+3. Start the dev server:
+   ```bash
+   npm run dev
+   # Open http://localhost:3000
+   ```
 
-- `src/app/` – App Router pages and Auth0 routes
-- `src/components/` – UI, layout, auth, and feature components
-- `src/styles/` – Global styling helpers
+### Layout
 
-To explore the prototype quickly:
-
-```bash
-npm install
-cp .env.local.example .env.local  # Add Auth0 secrets here
-npm run dev
-# Open http://localhost:3000
-```
+- `frontend/src/app/` – App Router pages and Auth0 routes.
+- `frontend/src/components/` – UI, layout, auth, and feature components.
+- `frontend/src/styles/` – Global styling helpers.
 
 Refer to `docs/SETUP.md` and `docs/AUTH0_SETUP.md` for deeper frontend guidance.

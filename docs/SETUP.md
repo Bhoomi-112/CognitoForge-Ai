@@ -11,8 +11,8 @@
 ### 1. Install Dependencies
 
 ```bash
-# Navigate to your project directory
-cd c:\workspace\prototype
+# Navigate to the frontend project
+cd frontend
 
 # Install all dependencies
 npm install
@@ -54,6 +54,7 @@ http://localhost:3000
 Copy `.env.local.example` to `.env.local`:
 
 ```bash
+cd frontend
 cp .env.local.example .env.local
 ```
 
@@ -103,6 +104,7 @@ openssl rand -hex 32
 
 ```bash
 # Start development server
+cd frontend
 npm run dev
 
 # Or with yarn

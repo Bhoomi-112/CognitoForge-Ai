@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.models.schemas import AttackPlan
+from backend.app.models.schemas import AttackPlan
 
 
 def run_sandbox_simulation(plan: AttackPlan) -> dict[str, object]:
