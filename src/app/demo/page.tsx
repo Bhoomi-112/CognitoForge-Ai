@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { ToastContainer, useToast } from '@/components/ui/toast';
+import { uploadRepository, startAnalysis, getLatestReport } from '@/lib/api';
+import { validateRepoUrl, validateAnalysisType, combineValidationResults } from '@/lib/validation';
 import {
   Shield,
   GitBranch,
@@ -71,10 +74,39 @@ function RepoInputForm({ onSubmit, isLoading }: {
 }) {
   const [repoUrl, setRepoUrl] = useState('https://github.com/vulnerable-app/node-express-demo');
   const [analysisType, setAnalysisType] = useState('comprehensive');
+  const [errors, setErrors] = useState<string[]>([]);
+  const [touched, setTouched] = useState({ repoUrl: false, analysisType: false });
+
+  const validateForm = () => {
+    const repoValidation = validateRepoUrl(repoUrl);
+    const analysisValidation = validateAnalysisType(analysisType);
+    const combined = combineValidationResults(repoValidation, analysisValidation);
+    
+    setErrors(combined.errors);
+    return combined.isValid;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(repoUrl, analysisType);
+    setTouched({ repoUrl: true, analysisType: true });
+    
+    if (validateForm()) {
+      onSubmit(repoUrl, analysisType);
+    }
+  };
+
+  const handleRepoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRepoUrl(e.target.value);
+    if (touched.repoUrl) {
+      validateForm();
+    }
+  };
+
+  const handleAnalysisTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAnalysisType(e.target.value);
+    if (touched.analysisType) {
+      validateForm();
+    }
   };
 
   return (
@@ -93,6 +125,16 @@ function RepoInputForm({ onSubmit, isLoading }: {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 glass p-8 rounded-lg">
+        {errors.length > 0 && (
+          <div className="bg-red-900/20 border border-red-700/50 text-red-300 px-4 py-3 rounded-lg">
+            <ul className="text-sm space-y-1">
+              {errors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div>
           <label htmlFor="repoUrl" className="block text-sm font-medium mb-2">
             Repository URL
@@ -101,10 +143,16 @@ function RepoInputForm({ onSubmit, isLoading }: {
             id="repoUrl"
             type="url"
             value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
-            className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            onChange={handleRepoUrlChange}
+            onBlur={() => setTouched(prev => ({ ...prev, repoUrl: true }))}
+            className={`w-full px-4 py-3 bg-background border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+              touched.repoUrl && errors.some(e => e.includes('Repository URL')) 
+                ? 'border-red-500' 
+                : 'border-border'
+            }`}
             placeholder="https://github.com/username/repository"
             required
+            disabled={isLoading}
           />
         </div>
 
@@ -115,8 +163,15 @@ function RepoInputForm({ onSubmit, isLoading }: {
           <select
             id="analysisType"
             value={analysisType}
-            onChange={(e) => setAnalysisType(e.target.value)}
-            className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            onChange={handleAnalysisTypeChange}
+            onBlur={() => setTouched(prev => ({ ...prev, analysisType: true }))}
+            className={`w-full px-4 py-3 bg-background border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+              touched.analysisType && errors.some(e => e.includes('Analysis type')) 
+                ? 'border-red-500' 
+                : 'border-border'
+            }`}
+            required
+            disabled={isLoading}
           >
             <option value="comprehensive">Comprehensive Security Audit</option>
             <option value="quick">Quick Vulnerability Scan</option>
@@ -129,7 +184,7 @@ function RepoInputForm({ onSubmit, isLoading }: {
           type="submit"
           size="lg"
           className="w-full"
-          disabled={isLoading}
+          disabled={isLoading || errors.length > 0}
         >
           {isLoading ? (
             <>
@@ -228,6 +283,9 @@ function SecurityReport({
 }: { 
   onNewAnalysis: () => void; 
 }) {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const { showSuccess, showError } = useToast();
+  
   const vulnerabilities: Vulnerability[] = [
     {
       title: "SQL Injection in Login Form",
@@ -247,6 +305,22 @@ function SecurityReport({
       description: "Session tokens are predictable and not properly invalidated"
     }
   ];
+
+  const handleDownloadReport = async () => {
+    setIsDownloading(true);
+    try {
+      // In a real app, this would call the API
+      // const result = await downloadReport('demo-report-id', 'pdf');
+      
+      // For demo, simulate download
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      showSuccess('Download Complete', 'Security report downloaded successfully');
+    } catch (error) {
+      showError('Download Failed', 'Failed to download report');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -329,9 +403,22 @@ function SecurityReport({
           <RefreshCw className="mr-2 h-4 w-4" />
           New Analysis
         </Button>
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Download Report
+        <Button 
+          variant="outline" 
+          onClick={handleDownloadReport}
+          disabled={isDownloading}
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Downloading...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Download Report
+            </>
+          )}
         </Button>
       </div>
     </motion.div>
@@ -345,6 +432,7 @@ export default function DemoPage() {
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const { toasts, closeToast, showSuccess, showError, showInfo } = useToast();
 
   const startAnalysis = async (repoUrl: string, analysisType: string) => {
     setIsLoading(true);
@@ -352,11 +440,20 @@ export default function DemoPage() {
     
     // Try to call the backend API first (this will be a real call)
     try {
+      showInfo('Uploading Repository', 'Connecting to backend...');
+      
       // This would be the real API call in production
-      // const result = await uploadRepository(repoUrl, analysisType);
-      // console.log('Analysis started:', result);
+      const uploadResult = await uploadRepository(repoUrl, analysisType);
+      
+      if (uploadResult.success) {
+        showSuccess('Repository Uploaded', 'Starting security analysis...');
+      } else {
+        showError('Upload Failed', uploadResult.error?.message || 'Failed to upload repository');
+        // Continue with demo mode
+      }
     } catch (error) {
       console.warn('Backend API unavailable, using demo mode:', error);
+      showInfo('Demo Mode', 'Backend unavailable, running simulation...');
     }
     
     const steps: AnalysisStep[] = [
@@ -404,6 +501,7 @@ export default function DemoPage() {
     // Show report after a brief delay
     setTimeout(() => {
       setCurrentPage('report');
+      showSuccess('Analysis Complete', 'Security analysis finished successfully');
     }, 2000);
   };
 
@@ -412,11 +510,13 @@ export default function DemoPage() {
     setAnalysisSteps([]);
     setProgress(0);
     setIsLoading(false);
+    showInfo('New Analysis', 'Ready to analyze another repository');
   };
 
   return (
     <div className="min-h-screen bg-background">
       <DemoHeader />
+      <ToastContainer toasts={toasts} onClose={closeToast} />
       
       <main className="container mx-auto px-4 py-8">
         <AnimatePresence mode="wait">

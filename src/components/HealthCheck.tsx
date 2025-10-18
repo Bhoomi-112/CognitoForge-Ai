@@ -12,12 +12,17 @@ export function HealthCheck() {
   useEffect(() => {
     const checkBackendHealth = async () => {
       try {
-        await healthCheck();
-        setHealthStatus('healthy');
-        // Auto-dismiss healthy status after 3 seconds
-        setTimeout(() => {
-          setHealthStatus('dismissed');
-        }, 3000);
+        const result = await healthCheck();
+        if (result.success) {
+          setHealthStatus('healthy');
+          // Auto-dismiss healthy status after 3 seconds
+          setTimeout(() => {
+            setHealthStatus('dismissed');
+          }, 3000);
+        } else {
+          setHealthStatus('unhealthy');
+          setError(result.error?.message || 'Backend connection failed');
+        }
       } catch (err) {
         console.error('Backend health check failed:', err);
         setHealthStatus('unhealthy');
@@ -42,11 +47,16 @@ export function HealthCheck() {
     setError('');
     
     try {
-      await healthCheck();
-      setHealthStatus('healthy');
-      setTimeout(() => {
-        setHealthStatus('dismissed');
-      }, 3000);
+      const result = await healthCheck();
+      if (result.success) {
+        setHealthStatus('healthy');
+        setTimeout(() => {
+          setHealthStatus('dismissed');
+        }, 3000);
+      } else {
+        setHealthStatus('unhealthy');
+        setError(result.error?.message || 'Backend connection failed');
+      }
     } catch (err) {
       console.error('Backend health check failed:', err);
       setHealthStatus('unhealthy');

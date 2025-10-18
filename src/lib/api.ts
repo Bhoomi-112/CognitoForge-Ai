@@ -16,12 +16,30 @@ export const apiConfig = {
 };
 
 /**
+ * API Error types
+ */
+export interface ApiError {
+  message: string;
+  status?: number;
+  code?: string;
+}
+
+/**
+ * API Response wrapper
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: ApiError;
+}
+
+/**
  * Generic API request wrapper with error handling
  */
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const url = `${BASE_URL}${endpoint}`;
   
   const config: RequestInit = {
@@ -36,20 +54,28 @@ async function apiRequest<T>(
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    return { success: true, data };
   } catch (error) {
     console.error(`API request failed for ${endpoint}:`, error);
-    throw error;
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Network error occurred',
+        status: error instanceof Error && 'status' in error ? (error as any).status : undefined,
+      }
+    };
   }
 }
 
 /**
  * Health check endpoint
  */
-export async function healthCheck(): Promise<{ status: string; message?: string }> {
+export async function healthCheck(): Promise<ApiResponse<{ status: string; message?: string }>> {
   try {
     const response = await fetch(`${BASE_URL}/health`, {
       method: 'GET',
@@ -64,17 +90,23 @@ export async function healthCheck(): Promise<{ status: string; message?: string 
       throw new Error(`Health check failed: ${response.status}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    return { success: true, data };
   } catch (error) {
     console.error('Health check failed:', error);
-    throw error;
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Health check failed',
+      }
+    };
   }
 }
 
 /**
  * Upload repository for analysis
  */
-export async function uploadRepository(repoUrl: string, analysisType: string) {
+export async function uploadRepository(repoUrl: string, analysisType: string): Promise<ApiResponse<{ repoId: string; message: string }>> {
   return apiRequest('/api/upload', {
     method: 'POST',
     body: JSON.stringify({
@@ -87,7 +119,7 @@ export async function uploadRepository(repoUrl: string, analysisType: string) {
 /**
  * Start security analysis simulation
  */
-export async function startAnalysis(repoId: string, config: any) {
+export async function startAnalysis(repoId: string, config: any): Promise<ApiResponse<{ analysisId: string; status: string }>> {
   return apiRequest('/api/simulate', {
     method: 'POST',
     body: JSON.stringify({
@@ -100,7 +132,7 @@ export async function startAnalysis(repoId: string, config: any) {
 /**
  * Get latest analysis report
  */
-export async function getLatestReport(repoId?: string) {
+export async function getLatestReport(repoId?: string): Promise<ApiResponse<any>> {
   const endpoint = repoId ? `/api/reports/${repoId}` : '/api/reports/latest';
   return apiRequest(endpoint, {
     method: 'GET',
@@ -110,7 +142,7 @@ export async function getLatestReport(repoId?: string) {
 /**
  * Get analysis status
  */
-export async function getAnalysisStatus(analysisId: string) {
+export async function getAnalysisStatus(analysisId: string): Promise<ApiResponse<{ status: string; progress: number }>> {
   return apiRequest(`/api/analysis/${analysisId}/status`, {
     method: 'GET',
   });
