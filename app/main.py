@@ -17,9 +17,13 @@ app = FastAPI(
 )
 
 # Basic CORS support so the hackathon frontend can call these endpoints without hassle.
+allowed_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
+if settings.auth0_domain:
+    allowed_origins.add(settings.auth0_domain.rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if not settings.auth0_domain else [settings.auth0_domain],
+    allow_origins=sorted(allowed_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,7 +33,7 @@ app.include_router(operations.router)
 
 
 @app.get("/health")
-async def healthcheck() -> dict[str, str]:
+async def healthcheck() -> dict[str, bool]:
     """Simple health endpoint for uptime monitoring."""
 
-    return {"status": "ok"}
+    return {"ok": True}

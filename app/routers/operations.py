@@ -1,4 +1,10 @@
-"""API routers exposing core CognitoForge Labs functionality."""
+"""API routers exposing core CognitoForge Labs functionality.
+
+Payload cheat sheet for frontend devs:
+- POST /upload_repo -> {"repo_id": str, "repo_url"?: str, "zip_file_base64"?: str}
+- POST /simulate_attack -> {"repo_id": str}
+- GET  /reports/{repo_id}/latest -> summary JSON with run_id + severity tallies
+"""
 
 from __future__ import annotations
 
@@ -83,7 +89,10 @@ def _validate_repo_id(repo_id: str) -> None:
     """Ensure repository identifiers follow the expected pattern."""
 
     if not REPO_ID_PATTERN.fullmatch(repo_id):
-        raise HTTPException(status_code=400, detail={"error": "Invalid repo_id. Use alphanumeric characters and underscores only."})
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "Invalid repo_id. Use letters, numbers, underscores, or hyphens."},
+        )
 
 
 router = APIRouter(tags=["operations"])

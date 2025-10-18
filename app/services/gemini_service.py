@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from app.core.settings import get_settings
 from app.models.schemas import AttackPlan, AttackStep
+
+logger = logging.getLogger(__name__)
 
 
 def generate_attack_plan(repo_id: str) -> AttackPlan:
     """Build a mock attack plan that would normally come from Gemini responses."""
 
     settings = get_settings()
-    # The Gemini API key is not used in this stub but the check documents where it will matter.
-    if not settings.gemini_api_key:
-        # Keeping an explicit branch helps future developers wire the real integration.
-        pass
+    if settings.use_gemini and settings.gemini_api_key:
+        # TODO: Replace this stub with a real Gemini API call once the integration contract is finalised.
+        logger.info("USE_GEMINI enabled but real integration is pending; returning mock plan", extra={"repo_id": repo_id})
+    else:
+        logger.debug("Returning mock Gemini attack plan", extra={"repo_id": repo_id})
 
     steps: List[AttackStep] = [
         AttackStep(

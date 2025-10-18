@@ -1,0 +1,62 @@
+{
+  "repo_id": "smoke_d53597cc",
+  "run_id": "smoke_d53597cc_20251018T135337620805",
+  "timestamp": "2025-10-18T13:53:37.620805",
+  "plan": {
+    "repo_id": "smoke_d53597cc",
+    "overall_severity": "critical",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "Initial access via exposed CI token in repository secrets.",
+        "technique_id": "T1552",
+        "severity": "high",
+        "affected_files": [
+          ".github/workflows/deploy.yml"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "Privilege escalation through misconfigured Kubernetes RBAC manifests.",
+        "technique_id": "T1068",
+        "severity": "critical",
+        "affected_files": [
+          "deploy/k8s/rbac.yaml"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "Establish persistence by modifying container entrypoint script.",
+        "technique_id": "T1547",
+        "severity": "medium",
+        "affected_files": [
+          "docker/entrypoint.sh"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "smoke_d53597cc",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-18T13:53:37.620791Z",
+        "step": 1,
+        "action": "Initial access via exposed CI token in repository secrets.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-18T13:53:37.620800Z",
+        "step": 2,
+        "action": "Privilege escalation through misconfigured Kubernetes RBAC manifests.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-18T13:53:37.620802Z",
+        "step": 3,
+        "action": "Establish persistence by modifying container entrypoint script.",
+        "status": "success"
+      }
+    ]
+  }
+}

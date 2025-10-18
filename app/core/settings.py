@@ -23,6 +23,10 @@ class Settings(BaseSettings):
         default=None,
         description="Snowflake account locator when integrating with the real warehouse.",
     )
+    use_gemini: bool = Field(
+        default=False,
+        description="Toggle to enable real Gemini integration when credentials are available.",
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="COGNITOFORGE_", extra="allow")
 
