@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CognitoForge — AI Red Team Testing</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Intersection Observer for scroll animations
+    document.addEventListener('DOMContentLoaded', function() {
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      };
+      
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.style.animationPlayState = 'running';
+            entry.target.classList.add('animate-in');
+          }
+        });
+      }, observerOptions);
+      
+      // Observe all sections
+      document.querySelectorAll('section').forEach(section => {
+        observer.observe(section);
+      });
+      
+      // Add hover effects for metrics animation
+      document.querySelectorAll('.metrics li').forEach((metric, index) => {
+        metric.addEventListener('mouseenter', function() {
+          this.style.animationDelay = '0s';
+          this.style.animation = 'none';
+          setTimeout(() => {
+            this.style.animation = 'fadeInUp 0.3s ease-out forwards';
+          }, 10);
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <div class="logo">CognitoForge</div>
+      </div>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="#features">Platform</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a class="cta" href="#signup">Start testing</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <h1 id="hero-heading">Test your code like a hacker would</h1>
+          <p class="lead">CognitoForge runs AI red-team agents against your code, CI/CD pipelines, and infrastructure to find the sneaky attack paths that scanners miss.</p>
+
+          <div class="hero-cta">
+            <a class="btn primary" href="demo.html">Try Live Demo</a>
+            <a class="btn ghost" href="#" aria-label="Watch demo video">Watch demo</a>
+          </div>
+
+          <ul class="metrics" aria-hidden="false">
+            <li>
+              <div class="num">47</div>
+              <div class="meta">Vulnerabilities found</div>
+            </li>
+            <li>
+              <div class="num">12</div>
+              <div class="meta">CI/CD attack scenarios</div>
+            </li>
+            <li>
+              <div class="num">200+</div>
+              <div class="meta">Teams trained</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="card">
+            <div class="card-header">Simulated Alerts • <span class="alert-count">8</span></div>
+            <ul class="activity-list">
+              <li><strong>Build Pipeline</strong> — <span class="alert-text">Synthetic secret exposure</span></li>
+              <li><strong>API Gateway</strong> — <span class="alert-text">Auth header spoofing route</span></li>
+              <li><strong>Container Registry</strong> — <span class="alert-text">Unscoped image pull access</span></li>
+            </ul>
+            <div class="card-footer">
+              <div class="status-indicator"></div>
+              <span class="status-text">Real-time monitoring</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features" aria-labelledby="features-heading">
+      <div class="container">
+        <h2 id="features-heading">How CognitoForge works</h2>
+        <p class="section-lead">Automated adversarial simulation that uncovers how attackers would exploit weak controls in your code and pipelines.</p>
+
+        <div class="feature-grid">
+          <article class="feature">
+            <h3>Adversarial AI Simulation</h3>
+            <p>Adaptive AI agents explore unpredictable attack strategies against your code, CI flows, and infrastructure.</p>
+          </article>
+          <article class="feature">
+            <h3>CI/CD Pipeline Testing</h3>
+            <p>Detect build breaks, secret leaks, supply-chain vectors, and misconfigurations before they hit production.</p>
+          </article>
+          <article class="feature">
+            <h3>Attack Path Analysis</h3>
+            <p>Visualize lateral movement, privilege escalation, and data exfiltration routes with prioritized remediation steps.</p>
+          </article>
+          <article class="feature">
+            <h3>Remediation Training</h3>
+            <p>Actionable fixes, code snippets, and training exercises so teams can harden systems quickly.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="pricing" aria-labelledby="pricing-heading">
+      <div class="container">
+        <h2 id="pricing-heading">Pricing</h2>
+        <p class="section-lead">Flexible plans for teams and enterprises focused on proactive security.</p>
+
+        <div class="pricing-grid">
+          <div class="card pricing-card">
+            <h3>Team</h3>
+            <div class="price">$199 <span class="period">/ month</span></div>
+            <ul>
+              <li>Up to 10 repositories</li>
+              <li>Weekly adversarial testing</li>
+              <li>Basic attack simulations</li>
+            </ul>
+            <a class="btn primary" href="demo.html">Try Demo</a>
+          </div>
+
+          <div class="card pricing-card popular">
+            <h3>Enterprise</h3>
+            <div class="price">Custom</div>
+            <ul>
+              <li>Unlimited repositories</li>
+              <li>Advanced AI red team agents</li>
+              <li>Compliance reporting & training</li>
+            </ul>
+            <a class="btn ghost" href="demo.html">Try Demo</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="signup" class="signup" aria-labelledby="signup-heading">
+      <div class="container">
+        <h2 id="signup-heading">Sign up in seconds</h2>
+        <form class="signup-form" onsubmit="return false;" aria-describedby="signup-desc">
+          <p id="signup-desc" class="section-lead">Create a sandboxed project and run your first adversarial simulation in minutes.</p>
+          <label>
+            <span>Name</span>
+            <input placeholder="Your name" />
+          </label>
+          <label>
+            <span>Email</span>
+            <input type="email" placeholder="you@company.com" />
+          </label>
+          <div class="form-actions">
+            <button class="btn primary">Create account</button>
+            <a href="#" class="ghost-link">Sign in</a>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>© 2025 CognitoForge</div>
+        <nav>
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+        </nav>
+      </div>
+    </footer>
+  </main>
+
+</body>
+</html>
