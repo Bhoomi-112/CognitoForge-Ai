@@ -19,6 +19,14 @@ class Settings(BaseSettings):
         default=None,
         description="Google Gemini API key leveraged for adversarial planning.",
     )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        description="Gemini model identifier used when generating AI insights.",
+    )
+    github_token: Optional[str] = Field(
+        default=None,
+        description="Optional GitHub personal access token used when fetching repositories.",
+    )
     snowflake_account: Optional[str] = Field(
         default=None,
         description="Snowflake account locator when integrating with the real warehouse.",

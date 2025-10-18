@@ -114,3 +114,7 @@ class SimulationReport(BaseModel):
         default_factory=dict,
         description="Key metrics and affected artefacts extracted from the run.",
     )
+    ai_insight: Optional[str] = Field(
+        default=None,
+        description="Short AI-generated summary produced by Gemini when available.",
+    )

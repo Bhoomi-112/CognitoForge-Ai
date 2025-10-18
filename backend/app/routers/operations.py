@@ -13,13 +13,15 @@ import logging
 import re
 from collections import Counter
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
+from backend.app.core.settings import get_settings
 from backend.app.models.schemas import (
     AttackPlan,
     RepoUpload,
@@ -28,7 +30,8 @@ from backend.app.models.schemas import (
     SimulationSummary,
     VulnerabilityReport,
 )
-from backend.app.services.gemini_service import generate_attack_plan
+from backend.app.services import repo_fetcher
+from backend.app.services.gemini_service import generate_attack_plan, generate_ai_insight
 from backend.app.services.sandbox_service import run_sandbox_simulation
 from backend.app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
 from backend.app.utils.storage import (
@@ -85,6 +88,19 @@ def _build_report(run: SimulationRun) -> SimulationReport:
     return SimulationReport(repo_id=run.repo_id, run_id=run.run_id, summary=summary)
 
 
+async def _attach_ai_insight(run: SimulationRun, report: SimulationReport) -> Optional[str]:
+    """Populate the report with an AI insight when Gemini is enabled."""
+
+    settings = get_settings()
+    if not settings.use_gemini:
+        return None
+
+    insight = await run_in_threadpool(generate_ai_insight, run, report)
+    if insight:
+        report.ai_insight = insight
+    return insight
+
+
 def _validate_repo_id(repo_id: str) -> None:
     """Ensure repository identifiers follow the expected pattern."""
 
@@ -99,7 +115,7 @@ router = APIRouter(tags=["operations"])
 
 
 @router.post("/upload_repo")
-async def upload_repo(payload: RepoUpload) -> dict[str, str]:
+async def upload_repo(payload: RepoUpload) -> dict[str, object]:
     """Accept a repository upload request and return an acknowledgement."""
 
     logger.info("/upload_repo request received", extra={"repo_id": payload.repo_id})
@@ -112,11 +128,25 @@ async def upload_repo(payload: RepoUpload) -> dict[str, str]:
             )
             raise HTTPException(status_code=400, detail=detail)
 
+        manifest_summary: Optional[dict[str, object]] = None
+        if payload.repo_url:
+            try:
+                manifest_summary = repo_fetcher.fetch_and_store_repo(payload.repo_id, str(payload.repo_url))
+            except repo_fetcher.RepoFetchError as exc:
+                logger.exception(
+                    "/upload_repo repository fetch failed",
+                    extra={"repo_id": payload.repo_id, "repo_url": str(payload.repo_url)},
+                )
+                raise HTTPException(status_code=502, detail={"error": str(exc)}) from exc
+
         response = {
             "repo_id": payload.repo_id,
             "status": "ingested",
             "source": "url" if payload.repo_url else "upload",
         }
+        if manifest_summary:
+            response["files_indexed"] = manifest_summary.get("file_count")
+            response["high_risk_files"] = manifest_summary.get("high_risk_file_count")
         logger.info("/upload_repo success", extra={"repo_id": payload.repo_id})
         return response
     except HTTPException:
@@ -226,9 +256,14 @@ async def get_latest_simulation_report(repo_id: str) -> dict[str, object]:
 
         run = load_simulation(repo_id, latest_summary.run_id)
         report = _build_report(run)
+        insight = await _attach_ai_insight(run, report)
         logger.info(
             "/reports latest success",
-            extra={"repo_id": repo_id, "run_id": latest_summary.run_id},
+            extra={
+                "repo_id": repo_id,
+                "run_id": latest_summary.run_id,
+                "ai_insight_present": bool(insight),
+            },
         )
         return _to_dict(report)
     except SimulationNotFoundError as exc:
@@ -290,7 +325,15 @@ async def get_simulation_report(repo_id: str, run_id: str) -> dict[str, object]:
     try:
         run = load_simulation(repo_id, run_id)
         report = _build_report(run)
-        logger.info("/reports detail success", extra={"repo_id": repo_id, "run_id": run_id})
+        insight = await _attach_ai_insight(run, report)
+        logger.info(
+            "/reports detail success",
+            extra={
+                "repo_id": repo_id,
+                "run_id": run_id,
+                "ai_insight_present": bool(insight),
+            },
+        )
         return _to_dict(report)
     except SimulationNotFoundError as exc:
         logger.warning(

@@ -19,9 +19,11 @@ Repo housing both sides of the CognitoForge Labs hackathon project:
    COGNITOFORGE_AUTH0_DOMAIN=https://your-auth0-domain
    COGNITOFORGE_AUTH0_CLIENT_ID=client-id
    COGNITOFORGE_GEMINI_API_KEY=gemini-key
+   COGNITOFORGE_GEMINI_MODEL=gemini-1.5-flash
    COGNITOFORGE_SNOWFLAKE_ACCOUNT=account
    COGNITOFORGE_USE_GEMINI=false
    ```
+   (See `backend/.env.example` for a ready-to-copy template.)
 4. Launch the API server:
    ```bash
    uvicorn backend.app.main:app --reload
