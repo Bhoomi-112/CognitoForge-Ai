@@ -17,10 +17,10 @@ html{scroll-behavior:smooth}
 html,body{height:100%}
 body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; background:linear-gradient(180deg,#030216 0%,var(--bg) 100%); color:var(--text); margin:0; -webkit-font-smoothing:antialiased}
 
-/* Premium animations and keyframes */
+/* Premium animations and keyframes - Optimized for performance */
 @keyframes fadeInUp{
-  from{opacity:0;transform:translateY(30px)}
-  to{opacity:1;transform:translateY(0)}
+  from{opacity:0;transform:translate3d(0,30px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
 }
 @keyframes fadeIn{
   from{opacity:0}
@@ -31,19 +31,19 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue
   50%{box-shadow:0 0 30px rgba(124,92,255,0.5),0 0 40px rgba(124,92,255,0.3)}
 }
 @keyframes float{
-  0%,100%{transform:translateY(0px)}
-  50%{transform:translateY(-10px)}
+  0%,100%{transform:translate3d(0,0,0)}
+  50%{transform:translate3d(0,-10px,0)}
 }
 @keyframes slideInLeft{
-  from{opacity:0;transform:translateX(-50px)}
-  to{opacity:1;transform:translateX(0)}
+  from{opacity:0;transform:translate3d(-50px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
 }
 @keyframes slideInRight{
-  from{opacity:0;transform:translateX(50px)}
-  to{opacity:1;transform:translateX(0)}
+  from{opacity:0;transform:translate3d(50px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
 }
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
-.skip-link:focus{left:12px;top:12px;width:auto;height:auto;padding:8px 12px;background:#fff;color:#000;border-radius:6px;z-index:9999}
+.skip-link:focus{left:12px;top:12px;width:auto;height:auto;padding:8px 12px;background:#fff;color:#000;border-radius:6px;z-index:9999;text-decoration:none;font-weight:600}
 .container{max-width:var(--container);margin:0 auto;padding:48px 24px}
 .header-inner{display:flex;align-items:center;justify-content:space-between;animation:fadeIn 0.6s ease-out}
 .brand .logo{font-weight:700;font-size:20px;color:var(--primary);transition:all 0.3s ease}
@@ -58,26 +58,26 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue
 .hero{padding:80px 0;position:relative;overflow:hidden}
 .hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(600px circle at 50% 0%,rgba(124,92,255,0.15),transparent);z-index:0}
 .hero-inner{display:flex;gap:48px;align-items:center;position:relative;z-index:1}
-.hero-copy{flex:1;animation:slideInLeft 0.8s ease-out}
-.hero-visual{width:420px;animation:slideInRight 0.8s ease-out 0.2s both}
-.hero h1{font-size:40px;margin:0 0 12px;animation:fadeInUp 0.6s ease-out 0.3s both}
-.lead{color:var(--muted);margin:0 0 20px;animation:fadeInUp 0.6s ease-out 0.4s both}
-.hero-cta{animation:fadeInUp 0.6s ease-out 0.5s both}
+.hero-copy{flex:1;animation:slideInLeft 0.8s ease-out;will-change:transform,opacity}
+.hero-visual{width:420px;animation:slideInRight 0.8s ease-out 0.2s both;will-change:transform,opacity}
+.hero h1{font-size:40px;margin:0 0 12px;animation:fadeInUp 0.6s ease-out 0.3s both;will-change:transform,opacity}
+.lead{color:var(--muted);margin:0 0 20px;animation:fadeInUp 0.6s ease-out 0.4s both;will-change:transform,opacity}
+.hero-cta{animation:fadeInUp 0.6s ease-out 0.5s both;will-change:transform,opacity}
 .hero-cta .btn{margin-right:12px}
-.btn{display:inline-block;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600;position:relative;overflow:hidden}
+.btn{display:inline-block;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600;position:relative;overflow:hidden;will-change:transform}
 .btn.primary{background:linear-gradient(90deg,var(--primary),var(--primary-2));color:#fff}
 .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
 .btn{transition:all .3s cubic-bezier(0.4,0,0.2,1)}
-.btn:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(124,92,255,0.25)}
+.btn:hover{transform:translate3d(0,-2px,0);box-shadow:0 10px 25px rgba(124,92,255,0.25)}
 .btn.primary:hover{box-shadow:0 10px 25px rgba(124,92,255,0.4);background:linear-gradient(90deg,#8a68ff,#6847d6)}
 .btn.ghost:hover{background:rgba(124,92,255,0.1);border-color:rgba(124,92,255,0.3)}
-.btn:focus{outline:none;box-shadow:0 6px 20px rgba(124,92,255,0.12);transform:translateY(-1px)}
+.btn:focus{outline:none;box-shadow:0 6px 20px rgba(124,92,255,0.12);transform:translate3d(0,-1px,0)}
 .metrics{display:flex;gap:18px;list-style:none;padding:18px 0 0;margin:0}
-.metrics li{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-width:120px;border:1px solid rgba(255,255,255,0.05);backdrop-filter:blur(10px);transition:all 0.3s ease;animation:fadeInUp 0.6s ease-out both}
+.metrics li{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-width:120px;border:1px solid rgba(255,255,255,0.05);backdrop-filter:blur(10px);transition:all 0.3s ease;animation:fadeInUp 0.6s ease-out both;will-change:transform}
 .metrics li:nth-child(1){animation-delay:0.6s}
 .metrics li:nth-child(2){animation-delay:0.7s}
 .metrics li:nth-child(3){animation-delay:0.8s}
-.metrics li:hover{transform:translateY(-5px);background:rgba(124,92,255,0.1);border-color:rgba(124,92,255,0.2)}
+.metrics li:hover{transform:translate3d(0,-5px,0);background:rgba(124,92,255,0.1);border-color:rgba(124,92,255,0.2)}
 .num{font-weight:700;font-size:18px;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .meta{color:var(--muted);font-size:13px}
 

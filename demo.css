@@ -1,17 +1,33 @@
-/* Demo-specific styles */
-.demo-main {
-  min-height: 100vh;
-}
-
+/* Performance optimizations */
 .demo-page {
   display: none;
   min-height: 80vh;
   padding: 40px 0;
+  will-change: opacity;
 }
 
 .demo-page.active {
   display: block;
   animation: fadeInUp 0.6s ease-out;
+}
+
+/* Hover improvements */
+.test-category:hover {
+  background: rgba(124,92,255,0.08);
+  border-color: rgba(124,92,255,0.2);
+  transform: translateX(4px);
+}
+
+.log-entry:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+/* Focus improvements for better accessibility */
+.test-category:focus-within,
+.timeline-step:focus-within,
+.vuln-item:focus-within {
+  outline: 2px solid rgba(124,92,255,0.5);
+  outline-offset: 2px;
 }
 
 /* Repository Input Page */
@@ -664,7 +680,7 @@
   margin-top: 40px;
 }
 
-/* Responsive */
+/* Responsive - Enhanced */
 @media (max-width: 768px) {
   .demo-hero h1 {
     font-size: 36px;
@@ -672,10 +688,12 @@
   
   .repo-form {
     padding: 24px;
+    margin-bottom: 40px;
   }
   
   .report-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
   
   .report-meta {
@@ -711,5 +729,38 @@
   .remedy-item {
     flex-direction: column;
     gap: 12px;
+  }
+  
+  .analysis-container {
+    padding: 0 16px;
+  }
+  
+  .status-log {
+    margin-bottom: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .demo-hero h1 {
+    font-size: 28px;
+  }
+  
+  .repo-form {
+    padding: 16px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 12px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .risk-gauge {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .risk-score {
+    font-size: 20px;
   }
 }

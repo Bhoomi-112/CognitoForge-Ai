@@ -3,11 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CognitoForge Demo - Try our AI red team testing platform. Submit a repository and see how our AI agents simulate realistic security attacks." />
+  <meta name="keywords" content="cybersecurity demo, red team testing, AI security analysis, vulnerability scanner" />
   <title>CognitoForge Demo — AI Red Team Testing</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="demo.css">
 </head>
 <body>
+  <a href="#demo-main" class="skip-link">Skip to main content</a>
   <header class="site-header">
     <div class="container header-inner">
       <div class="brand">
@@ -21,7 +24,7 @@
     </div>
   </header>
 
-  <main class="demo-main">
+  <main class="demo-main" id="demo-main">
     <!-- Repository Input Page -->
     <section id="repo-input" class="demo-page active">
       <div class="container">
@@ -39,20 +42,24 @@
                 id="repoUrl" 
                 placeholder="https://github.com/username/repository"
                 value="https://github.com/vulnerable-app/node-express-demo"
+                aria-describedby="repo-url-help"
                 required
               />
-              <div class="input-help">
+              <div class="input-help" id="repo-url-help">
                 We'll analyze your code for potential attack vectors and CI/CD vulnerabilities
               </div>
             </div>
 
             <div class="form-group">
               <label for="analysisType">Analysis Scope</label>
-              <select id="analysisType">
+              <select id="analysisType" aria-describedby="analysis-type-help">
                 <option value="full">Full Security Analysis</option>
                 <option value="pipeline">CI/CD Pipeline Only</option>
                 <option value="code">Code Vulnerabilities Only</option>
               </select>
+              <div class="input-help" id="analysis-type-help">
+                Choose the scope of security testing for your repository
+              </div>
             </div>
 
             <button type="submit" class="btn primary large">

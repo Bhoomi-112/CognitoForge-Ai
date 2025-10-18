@@ -3,8 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CognitoForge - AI-powered red team testing platform that simulates intelligent attacks on your code, CI/CD pipelines, and infrastructure before real hackers do." />
+  <meta name="keywords" content="cybersecurity, red team testing, AI security, vulnerability testing, DevSecOps" />
+  <meta name="author" content="CognitoForge" />
   <title>CognitoForge — AI Red Team Testing</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <script>
     // Intersection Observer for scroll animations
     document.addEventListener('DOMContentLoaded', function() {
@@ -22,18 +26,24 @@
         });
       }, observerOptions);
       
-      // Observe all sections
-      document.querySelectorAll('section').forEach(section => {
-        observer.observe(section);
+      // Observe all sections with animation delay for performance
+      requestAnimationFrame(() => {
+        document.querySelectorAll('section').forEach(section => {
+          observer.observe(section);
+        });
       });
       
-      // Add hover effects for metrics animation
+      // Add hover effects for metrics animation with debouncing
+      let animationTimeout;
       document.querySelectorAll('.metrics li').forEach((metric, index) => {
         metric.addEventListener('mouseenter', function() {
-          this.style.animationDelay = '0s';
-          this.style.animation = 'none';
-          setTimeout(() => {
-            this.style.animation = 'fadeInUp 0.3s ease-out forwards';
+          clearTimeout(animationTimeout);
+          animationTimeout = setTimeout(() => {
+            this.style.animationDelay = '0s';
+            this.style.animation = 'none';
+            requestAnimationFrame(() => {
+              this.style.animation = 'fadeInUp 0.3s ease-out forwards';
+            });
           }, 10);
         });
       });
@@ -41,6 +51,7 @@
   </script>
 </head>
 <body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
   <header class="site-header">
     <div class="container header-inner">
       <div class="brand">
@@ -55,7 +66,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="hero" aria-labelledby="hero-heading">
       <div class="container hero-inner">
         <div class="hero-copy">
@@ -67,7 +78,7 @@
             <a class="btn ghost" href="#" aria-label="Watch demo video">Watch demo</a>
           </div>
 
-          <ul class="metrics" aria-hidden="false">
+          <ul class="metrics" role="list" aria-label="Key statistics">
             <li>
               <div class="num">47</div>
               <div class="meta">Vulnerabilities found</div>

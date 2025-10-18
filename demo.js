@@ -1,61 +1,117 @@
-// Demo flow management
+// Demo flow management - Optimized
 class CognitoForgeDemo {
   constructor() {
     this.currentPage = 'repo-input';
     this.analysisId = null;
     this.analysisProgress = 0;
+    this.abortController = new AbortController();
     this.init();
   }
 
   init() {
-    this.bindEvents();
-    this.showPage('repo-input');
+    try {
+      this.bindEvents();
+      this.showPage('repo-input');
+    } catch (error) {
+      console.error('Demo initialization failed:', error);
+    }
   }
 
   bindEvents() {
-    // Repository form submission
+    // Repository form submission with error handling
     const repoForm = document.getElementById('repoForm');
     if (repoForm) {
-      repoForm.addEventListener('submit', (e) => this.handleRepoSubmission(e));
+      repoForm.addEventListener('submit', (e) => {
+        try {
+          this.handleRepoSubmission(e);
+        } catch (error) {
+          console.error('Form submission error:', error);
+          this.showError('An error occurred. Please try again.');
+        }
+      }, { signal: this.abortController.signal });
     }
   }
 
   showPage(pageId) {
-    // Hide all pages
-    document.querySelectorAll('.demo-page').forEach(page => {
-      page.classList.remove('active');
-    });
+    // Use requestAnimationFrame for smoother transitions
+    requestAnimationFrame(() => {
+      // Hide all pages
+      document.querySelectorAll('.demo-page').forEach(page => {
+        page.classList.remove('active');
+      });
 
-    // Show target page
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-      targetPage.classList.add('active');
-      this.currentPage = pageId;
-    }
+      // Show target page
+      const targetPage = document.getElementById(pageId);
+      if (targetPage) {
+        targetPage.classList.add('active');
+        this.currentPage = pageId;
+      }
+    });
   }
 
   async handleRepoSubmission(e) {
     e.preventDefault();
     
-    const repoUrl = document.getElementById('repoUrl').value;
-    const analysisType = document.getElementById('analysisType').value;
+    try {
+      const repoUrl = document.getElementById('repoUrl')?.value;
+      const analysisType = document.getElementById('analysisType')?.value;
+      
+      if (!repoUrl) {
+        throw new Error('Repository URL is required');
+      }
+      
+      // Show loading state
+      this.showLoadingState();
+      
+      // Generate analysis ID
+      this.analysisId = 'analysis_' + Date.now();
+      
+      // Start analysis simulation
+      await this.simulateAnalysis(repoUrl, analysisType);
+    } catch (error) {
+      console.error('Analysis submission error:', error);
+      this.showError('Failed to start analysis. Please check your input and try again.');
+    }
+  }
+
+  showError(message) {
+    // Create or update error display
+    let errorEl = document.querySelector('.demo-error');
+    if (!errorEl) {
+      errorEl = document.createElement('div');
+      errorEl.className = 'demo-error';
+      errorEl.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ff4444;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+      `;
+      document.body.appendChild(errorEl);
+    }
     
-    // Show loading state
-    this.showLoadingState();
+    errorEl.textContent = message;
     
-    // Generate analysis ID
-    this.analysisId = 'analysis_' + Date.now();
-    
-    // Start analysis simulation
-    await this.simulateAnalysis(repoUrl, analysisType);
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      if (errorEl.parentNode) {
+        errorEl.remove();
+      }
+    }, 5000);
   }
 
   showLoadingState() {
     const btnText = document.querySelector('.btn-text');
     const btnLoading = document.querySelector('.btn-loading');
     
-    btnText.style.display = 'none';
-    btnLoading.style.display = 'flex';
+    if (btnText && btnLoading) {
+      btnText.style.display = 'none';
+      btnLoading.style.display = 'flex';
+    }
     
     // Transition to analysis page after short delay
     setTimeout(() => {
@@ -65,15 +121,16 @@ class CognitoForgeDemo {
   }
 
   async simulateAnalysis(repoUrl, analysisType) {
-    // This simulates the backend analysis process
-    const steps = [
-      { message: 'Cloning repository...', duration: 2000 },
-      { message: 'Setting up secure sandbox environment...', duration: 3000 },
-      { message: 'Analyzing code structure...', duration: 2500 },
-      { message: 'Running static security analysis...', duration: 4000 },
-      { message: 'Simulating attack scenarios...', duration: 5000 },
-      { message: 'Testing CI/CD pipeline vulnerabilities...', duration: 3500 },
-      { message: 'Generating attack paths...', duration: 2000 },
+    try {
+      // This simulates the backend analysis process
+      const steps = [
+        { message: 'Cloning repository...', duration: 2000 },
+        { message: 'Setting up secure sandbox environment...', duration: 3000 },
+        { message: 'Analyzing code structure...', duration: 2500 },
+        { message: 'Running static security analysis...', duration: 4000 },
+        { message: 'Simulating attack scenarios...', duration: 5000 },
+        { message: 'Testing CI/CD pipeline vulnerabilities...', duration: 3500 },
+        { message: 'Generating attack paths...', duration: 2000 },
       { message: 'Compiling security report...', duration: 2000 }
     ];
 
