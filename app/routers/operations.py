@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections import Counter
 from datetime import datetime
 from typing import List
 
@@ -17,6 +18,7 @@ from app.models.schemas import (
     AttackPlan,
     RepoUpload,
     SimulationRun,
+    SimulationReport,
     SimulationSummary,
     VulnerabilityReport,
 )
@@ -59,6 +61,22 @@ def _persist_simulation(run: SimulationRun) -> None:
     file_path = directory / f"{run.run_id}.json"
     with file_path.open("w", encoding="utf-8") as handle:
         json.dump(jsonable_encoder(run), handle, indent=2)
+
+
+def _build_report(run: SimulationRun) -> SimulationReport:
+    """Construct a report summary from a stored simulation run."""
+
+    severity_counts = Counter(step.severity.lower() for step in run.plan.steps)
+    summary = {
+        "overall_severity": run.plan.overall_severity,
+    }
+    for severity, count in severity_counts.items():
+        summary[f"{severity}_steps"] = count
+
+    affected_files = sorted({file for step in run.plan.steps for file in step.affected_files})
+    summary["affected_files"] = affected_files
+
+    return SimulationReport(repo_id=run.repo_id, run_id=run.run_id, summary=summary)
 
 
 def _validate_repo_id(repo_id: str) -> None:
@@ -178,6 +196,46 @@ async def list_simulations_endpoint(repo_id: str) -> List[dict[str, object]]:
         raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
 
 
+@router.get("/reports/{repo_id}/latest", response_model=SimulationReport)
+async def get_latest_simulation_report(repo_id: str) -> dict[str, object]:
+    """Fetch the most recent simulation run and return its summary report."""
+
+    logger.info("/reports latest request received", extra={"repo_id": repo_id})
+    _validate_repo_id(repo_id)
+    try:
+        summaries = list_simulations(repo_id)
+        if not summaries:
+            logger.warning("/reports latest not found", extra={"repo_id": repo_id})
+            raise HTTPException(status_code=404, detail={"error": f"No simulations found for {repo_id}"})
+
+        summaries.sort(key=lambda item: item.timestamp, reverse=True)
+        latest_summary = summaries[0]
+        logger.info(
+            "/reports latest selecting run",
+            extra={"repo_id": repo_id, "run_id": latest_summary.run_id},
+        )
+
+        run = load_simulation(repo_id, latest_summary.run_id)
+        report = _build_report(run)
+        logger.info(
+            "/reports latest success",
+            extra={"repo_id": repo_id, "run_id": latest_summary.run_id},
+        )
+        return _to_dict(report)
+    except SimulationNotFoundError as exc:
+        logger.warning("/reports latest run missing", extra={"repo_id": repo_id})
+        raise HTTPException(status_code=404, detail={"error": str(exc)}) from exc
+    except SimulationDataError as exc:
+        logger.exception("/reports latest data error", extra={"repo_id": repo_id})
+        raise HTTPException(status_code=500, detail={"error": str(exc)}) from exc
+    except HTTPException:
+        logger.exception("/reports latest failed", extra={"repo_id": repo_id})
+        raise
+    except Exception as exc:
+        logger.exception("Unexpected error retrieving latest simulation report", extra={"repo_id": repo_id})
+        raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
+
+
 @router.get("/simulations/{repo_id}/{run_id}", response_model=SimulationRun)
 async def get_simulation(repo_id: str, run_id: str) -> dict[str, object]:
     """Return the persisted simulation payload for the requested run identifier."""
@@ -209,6 +267,43 @@ async def get_simulation(repo_id: str, run_id: str) -> dict[str, object]:
     except Exception as exc:
         logger.exception(
             "Unexpected error retrieving simulation detail",
+            extra={"repo_id": repo_id, "run_id": run_id},
+        )
+        raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
+
+
+@router.get("/reports/{repo_id}/{run_id}", response_model=SimulationReport)
+async def get_simulation_report(repo_id: str, run_id: str) -> dict[str, object]:
+    """Produce a structured summary of a persisted simulation run."""
+
+    logger.info("/reports detail request received", extra={"repo_id": repo_id, "run_id": run_id})
+    _validate_repo_id(repo_id)
+    try:
+        run = load_simulation(repo_id, run_id)
+        report = _build_report(run)
+        logger.info("/reports detail success", extra={"repo_id": repo_id, "run_id": run_id})
+        return _to_dict(report)
+    except SimulationNotFoundError as exc:
+        logger.warning(
+            "/reports detail not found",
+            extra={"repo_id": repo_id, "run_id": run_id},
+        )
+        return JSONResponse(status_code=404, content={"error": str(exc)})
+    except SimulationDataError as exc:
+        logger.exception(
+            "/reports detail data error",
+            extra={"repo_id": repo_id, "run_id": run_id},
+        )
+        return JSONResponse(status_code=500, content={"error": str(exc)})
+    except HTTPException:
+        logger.exception(
+            "/reports detail failed",
+            extra={"repo_id": repo_id, "run_id": run_id},
+        )
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Unexpected error retrieving simulation report",
             extra={"repo_id": repo_id, "run_id": run_id},
         )
         raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc

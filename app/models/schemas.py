@@ -103,3 +103,14 @@ class SimulationRun(SimulationSummary):
         default_factory=dict,
         description="Sandbox execution artefacts captured for the run.",
     )
+
+
+class SimulationReport(BaseModel):
+    """Structured breakdown of a simulation run for reporting endpoints."""
+
+    repo_id: str = Field(..., description="Repository identifier for the report.")
+    run_id: str = Field(..., description="Simulation run identifier being summarised.")
+    summary: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Key metrics and affected artefacts extracted from the run.",
+    )
