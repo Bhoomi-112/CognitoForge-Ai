@@ -1,136 +1,85 @@
-# 🛡️ CognitoForge - AI Red Team Testing PlatformCognitoForge — Static Prototype
+# CognitoForge Labs Backend
 
+FastAPI backend powering the CognitoForge Labs hackathon project (AI-driven DevSecOps red team simulator).
 
+## Quick start
 
-A modern Next.js application with Auth0 authentication for AI-powered security testing.What this is
-
-
-
-## 📁 Project StructureThis is a small static prototype for CognitoForge, an AI-driven red-team simulator for developers and CI/CD pipelines. It focuses on the UI, messaging, and basic accessibility improvements — not the backend AI engine.
-
-
-
-```Files
-
-c:\workspace\prototype\
-
-├── src/                          # Source code- `index.html` — main static page with CognitoForge messaging
-
-│   ├── app/                      # Next.js App Router- `styles.css` — responsive styling and accessibility focus helpers
-
-│   │   ├── api/auth/[...auth0]/  # Auth0 API routes
-
-│   │   ├── demo/                 # Protected demo pageHow to open
-
-│   │   ├── layout.tsx            # Root layout
-
-│   │   └── page.tsx              # Home pageYou can open the prototype in two ways:
-
-│   ├── components/               # React components
-
-│   │   ├── auth/                 # Authentication components1) Open directly
-
-│   │   ├── layout/               # Layout components (Header, Footer)   - Double-click `index.html` in the project root to open in your browser.
-
-│   │   ├── features/             # Feature-specific components
-
-│   │   └── ui/                   # Reusable UI components2) Serve with a simple static server (recommended for correct relative paths)
-
-│   ├── lib/                      # Utilities and configurations
-
-│   ├── styles/                   # Global stylesOn Windows PowerShell, from the project root run:
-
-│   ├── types/                    # TypeScript type definitions
-
-│   └── hooks/                    # Custom React hooks```powershell
-
-├── public/                       # Static assetspython -m http.server 8000; Start-Process "http://localhost:8000/"
-
-├── docs/                         # Documentation```
-
-├── .env.local.example           # Environment variables template
-
-├── package.json                 # DependenciesNotes
-
-├── tailwind.config.js          # Tailwind CSS configuration
-
-├── tsconfig.json               # TypeScript configuration- This visual prototype demonstrates the product concept and basic UX around adversarial testing. It does not include any security testing logic.
-
-└── next.config.js              # Next.js configuration- If you'd like, I can convert this to a small React app, add accessibility tests, or wire a demo flow for an interactive simulation.
-
-```
-
-## 🚀 Quick Start
-
-1. **Install Dependencies**
+1. Create and activate a Python 3.11 virtual environment.
+2. Install dependencies:
    ```bash
-   npm install
+   pip install -r requirements.txt
    ```
-
-2. **Setup Environment**
+3. (Optional) configure environment variables in a `.env` file:
+   ```env
+   COGNITOFORGE_AUTH0_DOMAIN=https://your-auth0-domain
+   COGNITOFORGE_AUTH0_CLIENT_ID=client-id
+   COGNITOFORGE_GEMINI_API_KEY=gemini-key
+   COGNITOFORGE_SNOWFLAKE_ACCOUNT=account
+   COGNITOFORGE_USE_GEMINI=false
+   ```
+4. Launch the API server:
    ```bash
-   cp .env.local.example .env.local
-   # Edit .env.local with your Auth0 credentials
+   uvicorn app.main:app --reload
    ```
 
-3. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
+## Project layout
 
-4. **Open Application**
-   ```
-   http://localhost:3000
-   ```
+- `app/main.py` – FastAPI instance with CORS, health check, and router wiring.
+- `app/routers/operations.py` – REST endpoints for repository upload, attack simulation, reporting, and simulation history.
+- `app/services/` – Service layer stubs for Gemini, sandbox execution, and mock Snowflake queries.
+- `app/models/schemas.py` – Shared Pydantic models used across routers and services.
+- `app/data/vulnerabilities.json` – Mock vulnerability database seeded with three CVE examples.
+- `app/core/settings.py` – Environment-based configuration helper.
 
-## 🔧 Technologies Used
+## Extending the stub
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: TailwindCSS, shadcn/ui components
-- **Authentication**: Auth0
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
+- Replace `app/services/gemini_service.py` with real calls to the Gemini API once credentials are available.
+- Wire the sandbox service to your containerised execution engine in `app/services/sandbox_service.py`.
+- Swap the mock Snowflake service with actual warehouse queries in `app/services/snowflake_service.py`.
 
-## 📖 Documentation
+## Testing the endpoints
 
-See the `docs/` folder for detailed setup guides:
-- `docs/SETUP.md` - Complete setup instructions
-- `docs/AUTH0_SETUP.md` - Auth0 configuration guide
+After starting the server, open the interactive docs at `http://127.0.0.1:8000/docs` to experiment with the mock endpoints.
 
-## 🏗️ Development
-
-### Available Scripts
+Example curl workflow:
 
 ```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
+# Health check
+curl http://127.0.0.1:8000/health
+
+# Upload a repository reference
+curl -X POST http://127.0.0.1:8000/upload_repo \
+  -H "Content-Type: application/json" \
+  -d '{"repo_id":"demo-repo","repo_url":"https://github.com/example/repo"}'
+
+# Simulate an attack and persist the results
+curl -X POST http://127.0.0.1:8000/simulate_attack \
+  -H "Content-Type: application/json" \
+  -d '{"repo_id":"demo-repo"}'
+
+# Fetch the latest summary report for that repo
+curl http://127.0.0.1:8000/reports/demo-repo/latest
 ```
 
-### Component Organization
-
-- **UI Components** (`src/components/ui/`) - Reusable, styled components
-- **Layout Components** (`src/components/layout/`) - Header, Footer, etc.
-- **Auth Components** (`src/components/auth/`) - Authentication-related components
-- **Feature Components** (`src/components/features/`) - Business logic components
-
-## 🔒 Security Features
-
-- ✅ Auth0 authentication
-- ✅ Protected routes
-- ✅ User session management
-- ✅ Social login support
-- ✅ Secure token handling
-
-## 🎨 UI Features
-
-- ✅ Dark theme with purple accents
-- ✅ Glass morphism effects
-- ✅ Responsive design
-- ✅ Smooth animations
-- ✅ Modern typography
+Run `python smoke_test.py` for an automated version of the same workflow.
 
 ---
 
-Built with ❤️ for secure development workflows.
+## Frontend prototype (Next.js)
+
+The repository also contains a static prototype for the CognitoForge frontend (Next.js 14 + Auth0). Key locations:
+
+- `src/app/` – App Router pages and Auth0 routes
+- `src/components/` – UI, layout, auth, and feature components
+- `src/styles/` – Global styling helpers
+
+To explore the prototype quickly:
+
+```bash
+npm install
+cp .env.local.example .env.local  # Add Auth0 secrets here
+npm run dev
+# Open http://localhost:3000
+```
+
+Refer to `docs/SETUP.md` and `docs/AUTH0_SETUP.md` for deeper frontend guidance.
