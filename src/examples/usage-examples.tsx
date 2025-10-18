@@ -2,7 +2,11 @@
 
 // 1. Import the necessary components and utilities
 import { useToast } from '@/components/ui/toast';
-import { uploadRepository, startAnalysis, getLatestReport } from '@/lib/api';
+'use client';
+
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { uploadRepository, simulateAttack, fetchLatestReport } from '@/lib/api';
 import { validateRepoUrl, validateAnalysisType } from '@/lib/validation';
 
 // 2. Example component showing how to use the API with proper error handling

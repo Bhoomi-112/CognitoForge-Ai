@@ -21,7 +21,7 @@ export function ToastItem({ toast, onClose }: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose(toast.id);
-    }, toast.duration || 5000);
+    }, toast.duration || 3000); // Reduced from 5000ms to 3000ms
 
     return () => clearTimeout(timer);
   }, [toast.id, toast.duration, onClose]);
@@ -49,17 +49,18 @@ export function ToastItem({ toast, onClose }: ToastProps) {
   };
 
   return (
-    <div className={`${getStyles()} border px-4 py-3 rounded-lg backdrop-blur-md flex items-start gap-3 shadow-lg max-w-sm`}>
+    <div className={`${getStyles()} border px-4 py-3 rounded-lg backdrop-blur-md flex items-start gap-3 shadow-xl max-w-sm min-w-[300px] transform transition-all duration-300 ease-in-out`}>
       {getIcon()}
-      <div className="flex-1">
-        <p className="text-sm font-medium">{toast.title}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{toast.title}</p>
         {toast.message && (
-          <p className="text-xs opacity-90 mt-1">{toast.message}</p>
+          <p className="text-xs opacity-90 mt-1 break-words">{toast.message}</p>
         )}
       </div>
       <button 
         onClick={() => onClose(toast.id)}
-        className="opacity-70 hover:opacity-100 transition-opacity"
+        className="opacity-70 hover:opacity-100 transition-opacity flex-shrink-0 ml-2"
+        aria-label="Close notification"
       >
         <X className="h-4 w-4" />
       </button>
@@ -68,10 +69,30 @@ export function ToastItem({ toast, onClose }: ToastProps) {
 }
 
 export function ToastContainer({ toasts, onClose }: { toasts: Toast[]; onClose: (id: string) => void }) {
+  if (!toasts || toasts.length === 0) {
+    return null;
+  }
+
+  const clearAll = () => {
+    toasts.forEach(toast => onClose(toast.id));
+  };
+
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
+      {toasts.length > 2 && (
+        <div className="pointer-events-auto flex justify-end mb-2">
+          <button
+            onClick={clearAll}
+            className="text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded transition-colors"
+          >
+            Clear All
+          </button>
+        </div>
+      )}
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onClose={onClose} />
+        <div key={toast.id} className="pointer-events-auto">
+          <ToastItem toast={toast} onClose={onClose} />
+        </div>
       ))}
     </div>
   );
@@ -80,10 +101,18 @@ export function ToastContainer({ toasts, onClose }: { toasts: Toast[]; onClose: 
 // Toast hook for easy usage
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const MAX_TOASTS = 3; // Limit maximum number of toasts
 
   const showToast = (toast: Omit<Toast, 'id'>) => {
     const id = Date.now().toString();
-    setToasts(prev => [...prev, { ...toast, id }]);
+    setToasts(prev => {
+      const newToasts = [...prev, { ...toast, id }];
+      // If we exceed the limit, remove the oldest ones
+      if (newToasts.length > MAX_TOASTS) {
+        return newToasts.slice(-MAX_TOASTS);
+      }
+      return newToasts;
+    });
   };
 
   const closeToast = (id: string) => {

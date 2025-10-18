@@ -38,6 +38,38 @@ export interface AnalysisReport {
   timestamp: Date
 }
 
+// Report types for simulation reports
+export interface SimulationReport {
+  id: string
+  repoId: string
+  status: 'completed' | 'failed' | 'in_progress'
+  overallSeverity: 'critical' | 'high' | 'medium' | 'low'
+  summary: {
+    critical: number
+    high: number
+    medium: number
+    low: number
+    total: number
+  }
+  affectedFiles: AffectedFile[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AffectedFile {
+  filePath: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  issues: FileIssue[]
+}
+
+export interface FileIssue {
+  type: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  message: string
+  line?: number
+  column?: number
+}
+
 // UI types
 export type ButtonVariant = 
   | 'default' 

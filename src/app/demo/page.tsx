@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ToastContainer, useToast } from '@/components/ui/toast';
-import { uploadRepository, startAnalysis, getLatestReport } from '@/lib/api';
+import { LatestReport } from '@/components/reports';
+import { uploadRepository, simulateAttack, fetchLatestReport, runCompleteAnalysis, healthCheck } from '@/lib/api';
 import { validateRepoUrl, validateAnalysisType, combineValidationResults } from '@/lib/validation';
 import {
   Shield,
@@ -38,8 +39,6 @@ interface Vulnerability {
 }
 
 function DemoHeader() {
-  const { user } = useUser();
-  
   return (
     <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
@@ -51,17 +50,6 @@ function DemoHeader() {
             <div className="h-6 w-px bg-border/40" />
             <span className="text-muted-foreground">Security Analysis Demo</span>
           </div>
-          
-          {user && (
-            <div className="flex items-center gap-3">
-              <img
-                src={user.picture}
-                alt={user.name || 'User'}
-                className="h-8 w-8 rounded-full border border-border"
-              />
-              <span className="text-sm font-medium">{user.name}</span>
-            </div>
-          )}
         </div>
       </div>
     </header>
@@ -279,32 +267,72 @@ function AnalysisProgress({
 }
 
 function SecurityReport({ 
-  onNewAnalysis 
+  onNewAnalysis,
+  repoId,
+  analysisResult 
 }: { 
-  onNewAnalysis: () => void; 
+  onNewAnalysis: () => void;
+  repoId?: string | null;
+  analysisResult?: any;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const { showSuccess, showError } = useToast();
   
-  const vulnerabilities: Vulnerability[] = [
-    {
-      title: "SQL Injection in Login Form",
-      severity: "critical",
-      description: "Unsanitized user input allows database manipulation",
-      cve: "CVE-2023-1234"
-    },
-    {
-      title: "Exposed Admin Panel",
-      severity: "high",
-      description: "Admin interface accessible without proper authentication",
-      cve: "CVE-2023-5678"
-    },
-    {
-      title: "Weak Session Management",
-      severity: "medium",
-      description: "Session tokens are predictable and not properly invalidated"
+  // Use real analysis result data if available, otherwise use demo data
+  const displayData = analysisResult || {
+    summary: {
+      overall_severity: 'high',
+      critical_steps: 1,
+      high_steps: 2,
+      medium_steps: 3,
+      low_steps: 1,
+      affected_files: ['src/auth/login.js', 'config/database.js', 'api/admin.js']
     }
-  ];
+  };
+
+  const vulnerabilities: Vulnerability[] = analysisResult?.plan?.steps ? 
+    analysisResult.plan.steps.map((step: any) => ({
+      title: step.description || 'Unknown vulnerability',
+      severity: (step.severity || 'medium').toLowerCase(),
+      description: `Technique ID: ${step.technique_id || 'N/A'}`,
+      affectedFiles: step.affected_files || []
+    })) : [
+      {
+        title: "SQL Injection in Login Form",
+        severity: "critical",
+        description: "Unsanitized user input allows database manipulation",
+        cve: "CVE-2023-1234"
+      },
+      {
+        title: "Exposed Admin Panel",
+        severity: "high",
+        description: "Admin interface accessible without proper authentication",
+        cve: "CVE-2023-5678"
+      },
+      {
+        title: "Weak Session Management",
+        severity: "medium",
+        description: "Session tokens are predictable and not properly invalidated"
+      }
+    ];
+
+  const riskScore = () => {
+    const severity = displayData.summary?.overall_severity || 'medium';
+    switch (severity.toLowerCase()) {
+      case 'critical': return { score: '9.5/10', color: 'text-red-500', level: 'Critical Risk' };
+      case 'high': return { score: '8.5/10', color: 'text-orange-500', level: 'High Risk' };
+      case 'medium': return { score: '6.0/10', color: 'text-yellow-500', level: 'Medium Risk' };
+      case 'low': return { score: '3.0/10', color: 'text-green-500', level: 'Low Risk' };
+      default: return { score: '5.0/10', color: 'text-gray-500', level: 'Unknown Risk' };
+    }
+  };
+
+  const risk = riskScore();
+  
+  const totalVulns = (displayData.summary?.critical_steps || 0) + 
+                    (displayData.summary?.high_steps || 0) + 
+                    (displayData.summary?.medium_steps || 0) + 
+                    (displayData.summary?.low_steps || 0) || vulnerabilities.length;
 
   const handleDownloadReport = async () => {
     setIsDownloading(true);
@@ -350,21 +378,23 @@ function SecurityReport({
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
         {/* Risk Score */}
         <div className="glass p-6 rounded-lg text-center">
-          <div className="text-3xl font-bold text-red-500 mb-2">8.5/10</div>
+          <div className={`text-3xl font-bold mb-2 ${risk.color}`}>{risk.score}</div>
           <div className="text-sm text-muted-foreground">Risk Score</div>
-          <div className="text-red-500 text-sm mt-1">High Risk</div>
+          <div className={`text-sm mt-1 ${risk.color}`}>{risk.level}</div>
         </div>
 
         {/* Vulnerabilities Found */}
         <div className="glass p-6 rounded-lg text-center">
-          <div className="text-3xl font-bold text-orange-500 mb-2">{vulnerabilities.length}</div>
-          <div className="text-sm text-muted-foreground">Vulnerabilities</div>
+          <div className="text-3xl font-bold text-orange-500 mb-2">{totalVulns}</div>
+          <div className="text-sm text-muted-foreground">Issues Found</div>
           <div className="text-orange-500 text-sm mt-1">Action Required</div>
         </div>
 
         {/* Scan Duration */}
         <div className="glass p-6 rounded-lg text-center">
-          <div className="text-3xl font-bold text-primary mb-2">2.3m</div>
+          <div className="text-3xl font-bold text-primary mb-2">
+            {analysisResult ? '3.2m' : '2.3m'}
+          </div>
           <div className="text-sm text-muted-foreground">Scan Duration</div>
           <div className="text-green-500 text-sm mt-1">Completed</div>
         </div>
@@ -385,7 +415,7 @@ function SecurityReport({
               <div className="flex items-start justify-between mb-2">
                 <h4 className="font-medium">{vuln.title}</h4>
                 <span className={`px-2 py-1 rounded text-xs border ${getSeverityColor(vuln.severity)}`}>
-                  {vuln.severity.toUpperCase()}
+                  {(vuln.severity || 'unknown').toUpperCase()}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mb-2">{vuln.description}</p>
@@ -395,6 +425,12 @@ function SecurityReport({
             </motion.div>
           ))}
         </div>
+      </div>
+
+      {/* Latest Report Section */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-4">Latest Simulation Report</h3>
+        <LatestReport repoId={repoId || "demo-repo-123"} />
       </div>
 
       {/* Actions */}
@@ -427,35 +463,112 @@ function SecurityReport({
 
 type DemoPage = 'input' | 'analysis' | 'report';
 
+// Global flag to prevent multiple health check toasts
+let healthCheckToastShown = false;
+
 export default function DemoPage() {
   const [currentPage, setCurrentPage] = useState<DemoPage>('input');
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentRepoId, setCurrentRepoId] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   const { toasts, closeToast, showSuccess, showError, showInfo } = useToast();
+
+  // Check backend health on component mount (only once)
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      if (healthCheckToastShown) return; // Exit if already shown globally
+      
+      try {
+        const healthResult = await healthCheck();
+        if (healthResult.success) {
+          showSuccess('Backend Connected', 'CognitoForge backend is online and ready');
+          healthCheckToastShown = true;
+        } else {
+          showInfo('Demo Mode', 'Backend unavailable - using demo simulation');
+          healthCheckToastShown = true;
+        }
+      } catch (error) {
+        showInfo('Demo Mode', 'Backend unavailable - using demo simulation');
+        healthCheckToastShown = true;
+      }
+    };
+
+    checkBackendHealth();
+  }, []); // Empty dependency array - run only once on mount
 
   const startAnalysis = async (repoUrl: string, analysisType: string) => {
     setIsLoading(true);
     setCurrentPage('analysis');
+    setProgress(0);
     
-    // Try to call the backend API first (this will be a real call)
+    // Generate unique repo ID
+    const repoId = `repo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentRepoId(repoId);
+    
     try {
-      showInfo('Uploading Repository', 'Connecting to backend...');
+      // First, check if backend is available
+      const healthResult = await healthCheck();
       
-      // This would be the real API call in production
-      const uploadResult = await uploadRepository(repoUrl, analysisType);
-      
-      if (uploadResult.success) {
-        showSuccess('Repository Uploaded', 'Starting security analysis...');
+      if (healthResult.success) {
+        showSuccess('Backend Connected', 'Connected to CognitoForge backend successfully');
+        
+        // Use real backend workflow
+        const result = await runCompleteAnalysis(
+          repoId,
+          repoUrl,
+          (step: string, progress: number) => {
+            setProgress(progress);
+            // Update current step in the UI
+            const stepMessage = `${step} (${Math.round(progress)}%)`;
+            
+            // Initialize steps if not done yet
+            if (analysisSteps.length === 0) {
+              const steps: AnalysisStep[] = [
+                { id: '1', message: 'Uploading repository...', status: 'pending', duration: 1500 },
+                { id: '2', message: 'Running security simulation...', status: 'pending', duration: 2000 },
+                { id: '3', message: 'Generating report...', status: 'pending', duration: 2500 },
+                { id: '4', message: 'Analysis complete!', status: 'pending', duration: 500 }
+              ];
+              setAnalysisSteps(steps);
+            }
+            
+            // Update step status based on progress
+            setAnalysisSteps(prev => {
+              const stepIndex = Math.floor((progress / 100) * prev.length);
+              return prev.map((s, index) => {
+                if (index < stepIndex) return { ...s, status: 'complete' };
+                if (index === stepIndex) return { ...s, status: 'running', message: stepMessage };
+                return s;
+              });
+            });
+          }
+        );
+        
+        if (result.success) {
+          setProgress(100);
+          setIsLoading(false);
+          setAnalysisResult(result.data); // Store the real backend result
+          setCurrentPage('report');
+          showSuccess('Analysis Complete', 'Real security analysis completed successfully');
+          return;
+        } else {
+          throw new Error(result.error?.message || 'Backend analysis failed');
+        }
       } else {
-        showError('Upload Failed', uploadResult.error?.message || 'Failed to upload repository');
-        // Continue with demo mode
+        throw new Error('Backend health check failed');
       }
     } catch (error) {
-      console.warn('Backend API unavailable, using demo mode:', error);
+      console.error('Backend analysis failed:', error);
       showInfo('Demo Mode', 'Backend unavailable, running simulation...');
+      
+      // Fallback to demo simulation
+      await runDemoSimulation();
     }
-    
+  };
+
+  const runDemoSimulation = async () => {
     const steps: AnalysisStep[] = [
       { id: '1', message: 'Authenticating with secure analysis environment...', status: 'pending', duration: 1500 },
       { id: '2', message: 'Cloning repository...', status: 'pending', duration: 2000 },
@@ -510,6 +623,8 @@ export default function DemoPage() {
     setAnalysisSteps([]);
     setProgress(0);
     setIsLoading(false);
+    setCurrentRepoId(null);
+    setAnalysisResult(null);
     showInfo('New Analysis', 'Ready to analyze another repository');
   };
 
@@ -549,7 +664,11 @@ export default function DemoPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <SecurityReport onNewAnalysis={startNewAnalysis} />
+              <SecurityReport 
+                onNewAnalysis={startNewAnalysis} 
+                repoId={currentRepoId}
+                analysisResult={analysisResult}
+              />
             </motion.div>
           )}
         </AnimatePresence>

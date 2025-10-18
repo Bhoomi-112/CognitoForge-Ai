@@ -34,6 +34,55 @@ export interface ApiResponse<T = any> {
 }
 
 /**
+ * Backend data types matching the FastAPI responses
+ */
+export interface UploadResponse {
+  repo_id: string;
+  status: string;
+  source: string;
+}
+
+export interface SimulationResponse {
+  repo_id: string;
+  run_id: string;
+  timestamp: string;
+  plan: {
+    repo_id: string;
+    overall_severity: string;
+    steps: Array<{
+      step_number: number;
+      description: string;
+      technique_id: string;
+      severity: string;
+      affected_files: string[];
+    }>;
+  };
+  sandbox: {
+    repo_id: string;
+    summary: string;
+    logs: Array<{
+      timestamp: string;
+      step: number;
+      action: string;
+      status: string;
+    }>;
+  };
+}
+
+export interface ReportResponse {
+  repo_id: string;
+  run_id: string;
+  summary: {
+    overall_severity: string;
+    critical_steps?: number;
+    high_steps?: number;
+    medium_steps?: number;
+    low_steps?: number;
+    affected_files: string[];
+  };
+}
+
+/**
  * Generic API request wrapper with error handling
  */
 async function apiRequest<T>(
@@ -105,72 +154,85 @@ export async function healthCheck(): Promise<ApiResponse<{ status: string; messa
 
 /**
  * Upload repository for analysis
+ * POST /upload_repo
  */
-export async function uploadRepository(repoUrl: string, analysisType: string): Promise<ApiResponse<{ repoId: string; message: string }>> {
-  return apiRequest('/api/upload', {
+export async function uploadRepository(repoId: string, repoUrl: string): Promise<ApiResponse<UploadResponse>> {
+  return apiRequest('/upload_repo', {
     method: 'POST',
     body: JSON.stringify({
-      repoUrl,
-      analysisType,
+      repo_id: repoId,
+      repo_url: repoUrl,
     }),
   });
 }
 
 /**
- * Start security analysis simulation
+ * Simulate attack on repository
+ * POST /simulate_attack
  */
-export async function startAnalysis(repoId: string, config: any): Promise<ApiResponse<{ analysisId: string; status: string }>> {
-  return apiRequest('/api/simulate', {
+export async function simulateAttack(repoId: string): Promise<ApiResponse<SimulationResponse>> {
+  return apiRequest('/simulate_attack', {
     method: 'POST',
     body: JSON.stringify({
-      repoId,
-      config,
+      repo_id: repoId,
     }),
   });
 }
 
 /**
- * Get latest analysis report
+ * Fetch latest report for repository
+ * GET /reports/{repo_id}/latest
  */
-export async function getLatestReport(repoId?: string): Promise<ApiResponse<any>> {
-  const endpoint = repoId ? `/api/reports/${repoId}` : '/api/reports/latest';
-  return apiRequest(endpoint, {
+export async function fetchLatestReport(repoId: string): Promise<ApiResponse<ReportResponse>> {
+  return apiRequest(`/reports/${repoId}/latest`, {
     method: 'GET',
   });
 }
 
 /**
- * Get analysis status
+ * Complete analysis workflow: upload -> simulate -> fetch report
  */
-export async function getAnalysisStatus(analysisId: string): Promise<ApiResponse<{ status: string; progress: number }>> {
-  return apiRequest(`/api/analysis/${analysisId}/status`, {
-    method: 'GET',
-  });
-}
+export async function runCompleteAnalysis(
+  repoId: string,
+  repoUrl: string,
+  onProgress?: (step: string, progress: number) => void
+): Promise<ApiResponse<ReportResponse | UploadResponse | SimulationResponse>> {
+  try {
+    // Step 1: Upload repository
+    onProgress?.('Uploading repository...', 25);
+    const uploadResult = await uploadRepository(repoId, repoUrl);
+    if (!uploadResult.success) {
+      return uploadResult;
+    }
 
-/**
- * Download analysis report
- */
-export async function downloadReport(reportId: string, format: 'pdf' | 'json' = 'pdf') {
-  const response = await fetch(`${BASE_URL}/api/reports/${reportId}/download?format=${format}`, {
-    method: 'GET',
-    headers: {
-      'Accept': format === 'pdf' ? 'application/pdf' : 'application/json',
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to download report: ${response.status}`);
+    // Step 2: Simulate attack
+    onProgress?.('Running security simulation...', 50);
+    const simulationResult = await simulateAttack(repoId);
+    if (!simulationResult.success) {
+      return simulationResult;
+    }
+
+    // Step 3: Fetch latest report
+    onProgress?.('Generating report...', 75);
+    const reportResult = await fetchLatestReport(repoId);
+    onProgress?.('Analysis complete!', 100);
+    
+    return reportResult;
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : 'Analysis workflow failed',
+        code: 'WORKFLOW_ERROR',
+      },
+    };
   }
-  
-  return response.blob();
 }
 
 export default {
   healthCheck,
   uploadRepository,
-  startAnalysis,
-  getLatestReport,
-  getAnalysisStatus,
-  downloadReport,
+  simulateAttack,
+  fetchLatestReport,
+  runCompleteAnalysis,
 };

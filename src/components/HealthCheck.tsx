@@ -65,7 +65,7 @@ export function HealthCheck() {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm">
+    <div className="fixed top-20 right-4 z-40 max-w-sm">
       {healthStatus === 'healthy' && (
         <div className="bg-green-900/80 border border-green-700/50 text-green-100 px-4 py-3 rounded-lg backdrop-blur-md flex items-center gap-3 shadow-lg">
           <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />
