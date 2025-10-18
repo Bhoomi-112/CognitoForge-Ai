@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -83,4 +84,22 @@ class VulnerabilityReport(BaseModel):
     findings: List[VulnerabilityFinding] = Field(
         default_factory=list,
         description="Collection of vulnerability findings discovered during analysis.",
+    )
+
+
+class SimulationSummary(BaseModel):
+    """Lightweight view of a saved simulation run."""
+
+    repo_id: str = Field(..., description="Repository identifier that generated the run.")
+    run_id: str = Field(..., description="Unique identifier derived from repo and timestamp.")
+    timestamp: datetime = Field(..., description="UTC timestamp when the run was persisted.")
+
+
+class SimulationRun(SimulationSummary):
+    """Full persisted simulation payload combining plan and sandbox results."""
+
+    plan: AttackPlan = Field(..., description="Attack plan produced for the simulation run.")
+    sandbox: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Sandbox execution artefacts captured for the run.",
     )
