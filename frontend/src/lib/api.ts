@@ -80,6 +80,14 @@ export interface SimulationResponse {
       status: string;
     }>;
   };
+  // Optional AI metadata (only present when Gemini is used)
+  gemini_metadata?: {
+    plan_source: 'gemini' | 'fallback' | 'legacy';
+    model_used?: string;
+    ai_insight?: string;
+    gemini_prompt?: string;
+    gemini_raw_response?: string;
+  };
 }
 
 export interface ReportResponse {
@@ -198,12 +206,15 @@ export async function uploadRepository(repoId: string, repoUrl: string): Promise
 /**
  * Simulate attack on repository
  * POST /simulate_attack
+ * @param repoId - Repository identifier
+ * @param force - Force new generation, bypass 10-minute cache
  */
-export async function simulateAttack(repoId: string): Promise<ApiResponse<SimulationResponse>> {
+export async function simulateAttack(repoId: string, force: boolean = false): Promise<ApiResponse<SimulationResponse>> {
   return apiRequest('/simulate_attack', {
     method: 'POST',
     body: JSON.stringify({
       repo_id: repoId,
+      force: force,
     }),
   }, false); // No auth for now
 }
@@ -219,34 +230,63 @@ export async function fetchLatestReport(repoId: string): Promise<ApiResponse<Rep
 }
 
 /**
+ * Get AI-powered security insight for a repository
+ * GET /api/gemini/insight/{repo_id}
+ * 
+ * Returns Gemini-generated analysis of repository security posture.
+ * Requires USE_GEMINI=true on backend.
+ * 
+ * @param repoId - Repository identifier (alphanumeric, hyphens, underscores only)
+ *                 If a GitHub URL is passed, use extractRepoId() from utils first
+ */
+export async function getGeminiInsight(repoId: string): Promise<ApiResponse<{
+  repo_id: string;
+  insight: string;
+  source: 'simulation' | 'manifest' | 'disabled' | 'not_found' | 'error';
+  run_id?: string;
+  error?: string;
+}>> {
+  // Ensure repo_id is properly formatted (no URLs or special chars)
+  const cleanRepoId = encodeURIComponent(repoId);
+  
+  return apiRequest(`/api/gemini/insight/${cleanRepoId}`, {
+    method: 'GET',
+  }, false); // No auth for now
+}
+
+/**
  * Complete analysis workflow: upload -> simulate -> fetch report
  */
 export async function runCompleteAnalysis(
   repoId: string,
   repoUrl: string,
   onProgress?: (step: string, progress: number) => void
-): Promise<ApiResponse<ReportResponse | UploadResponse | SimulationResponse>> {
+): Promise<ApiResponse<SimulationResponse>> {
   try {
     // Step 1: Upload repository
     onProgress?.('Uploading repository...', 25);
     const uploadResult = await uploadRepository(repoId, repoUrl);
     if (!uploadResult.success) {
-      return uploadResult;
+      return {
+        success: false,
+        error: uploadResult.error
+      };
     }
 
-    // Step 2: Simulate attack
-    onProgress?.('Running security simulation...', 50);
+    // Step 2: Simulate attack (this has all the data we need!)
+    onProgress?.('Running AI-powered security simulation...', 50);
     const simulationResult = await simulateAttack(repoId);
     if (!simulationResult.success) {
       return simulationResult;
     }
 
-    // Step 3: Fetch latest report
-    onProgress?.('Generating report...', 75);
-    const reportResult = await fetchLatestReport(repoId);
+    // Step 3: Just update progress (simulation already has everything)
+    onProgress?.('Generating comprehensive report...', 75);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for UX
     onProgress?.('Analysis complete!', 100);
     
-    return reportResult;
+    // Return simulation result which includes plan, gemini_metadata, and all data
+    return simulationResult;
   } catch (error) {
     return {
       success: false,
@@ -258,10 +298,78 @@ export async function runCompleteAnalysis(
   }
 }
 
+/**
+ * Snowflake Integration APIs
+ */
+
+export interface SnowflakeSeveritySummary {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+/**
+ * Get severity summary from Snowflake analytics
+ * GET /analytics/summary
+ */
+export async function getAnalyticsSummary(): Promise<ApiResponse<SnowflakeSeveritySummary>> {
+  return apiRequest('/analytics/summary', {
+    method: 'GET',
+  }, false);
+}
+
+/**
+ * Get all simulations for dashboard
+ * GET /api/simulations/list
+ */
+export async function getAllSimulations(): Promise<ApiResponse<{
+  success: boolean;
+  total: number;
+  simulations: SimulationResponse[];
+}>> {
+  return apiRequest('/api/simulations/list', {
+    method: 'GET',
+  }, false);
+}
+
+/**
+ * Gradient Integration APIs
+ */
+
+export interface GradientStatus {
+  connected: boolean;
+  mock_mode: boolean;
+  message: string;
+}
+
+export interface GradientTaskMetadata {
+  runtime_env: string;
+  instance_type: string;
+  execution_time: number;
+}
+
+/**
+ * Get Gradient cluster status
+ * GET /api/gradient/status
+ */
+export async function getGradientStatus(): Promise<ApiResponse<{
+  success: boolean;
+  status: GradientStatus;
+}>> {
+  return apiRequest('/api/gradient/status', {
+    method: 'GET',
+  }, false);
+}
+
 export default {
   healthCheck,
   uploadRepository,
   simulateAttack,
   fetchLatestReport,
   runCompleteAnalysis,
+  getGeminiInsight,
+  getAnalyticsSummary,
+  getAllSimulations,
+  getGradientStatus,
 };

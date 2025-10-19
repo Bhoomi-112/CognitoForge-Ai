@@ -15,11 +15,15 @@ import {
   RefreshCw,
   BarChart3,
   Target,
-  Zap
+  Zap,
+  Database,
+  Server,
+  Cloud
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import Link from 'next/link';
+import { getAllSimulations, getAnalyticsSummary, getGradientStatus, type GradientStatus, type SnowflakeSeveritySummary } from '@/lib/api';
 
 interface DashboardStats {
   totalRepositories: number;
@@ -48,6 +52,8 @@ interface RecentSimulation {
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentSimulations, setRecentSimulations] = useState<RecentSimulation[]>([]);
+  const [snowflakeSummary, setSnowflakeSummary] = useState<SnowflakeSeveritySummary | null>(null);
+  const [gradientStatus, setGradientStatus] = useState<GradientStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { showSuccess, showError } = useToast();
@@ -56,17 +62,14 @@ export function Dashboard() {
     try {
       setIsRefreshing(true);
       
-      // Fetch all simulation files from backend
-      const response = await fetch('http://127.0.0.1:8000/api/simulations/list', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // Fetch all simulation files from backend using API service
+      const simulationsResponse = await getAllSimulations();
 
-      if (!response.ok) {
+      if (!simulationsResponse.success || !simulationsResponse.data) {
         throw new Error('Failed to fetch dashboard data');
       }
 
-      const data = await response.json();
+      const data = simulationsResponse.data;
       
       // Process data to calculate stats
       const simulations = data.simulations || [];
@@ -153,6 +156,18 @@ export function Dashboard() {
 
       setStats(statsData);
       setRecentSimulations(recent);
+
+      // Fetch Snowflake analytics summary (parallel with simulations)
+      const snowflakeResponse = await getAnalyticsSummary();
+      if (snowflakeResponse.success && snowflakeResponse.data) {
+        setSnowflakeSummary(snowflakeResponse.data);
+      }
+
+      // Fetch Gradient status
+      const gradientResponse = await getGradientStatus();
+      if (gradientResponse.success && gradientResponse.data) {
+        setGradientStatus(gradientResponse.data.status);
+      }
       
       if (!isLoading) {
         showSuccess('Dashboard Updated', 'Data refreshed successfully');
@@ -391,6 +406,97 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Snowflake & Gradient Status Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Snowflake Analytics */}
+        <div className="glass p-6 rounded-lg border border-blue-500/20">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Database className="h-5 w-5 text-blue-500" />
+            </div>
+            <h3 className="text-lg font-semibold">Snowflake Analytics</h3>
+          </div>
+          
+          {snowflakeSummary ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Critical Threats</span>
+                <span className="text-lg font-bold text-red-500">{snowflakeSummary.critical}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">High Severity</span>
+                <span className="text-lg font-bold text-orange-500">{snowflakeSummary.high}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Medium Risk</span>
+                <span className="text-lg font-bold text-yellow-500">{snowflakeSummary.medium}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Low Risk</span>
+                <span className="text-lg font-bold text-blue-500">{snowflakeSummary.low}</span>
+              </div>
+              <div className="pt-3 border-t border-border/40">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  Data synced from Snowflake warehouse
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Server className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Snowflake data unavailable</p>
+              <p className="text-xs mt-1">Configure credentials to enable analytics</p>
+            </div>
+          )}
+        </div>
+
+        {/* Gradient Status */}
+        <div className="glass p-6 rounded-lg border border-purple-500/20">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <Cloud className="h-5 w-5 text-purple-500" />
+            </div>
+            <h3 className="text-lg font-semibold">Gradient Cluster</h3>
+          </div>
+          
+          {gradientStatus ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <span className={`flex items-center gap-2 ${gradientStatus.connected ? 'text-green-500' : 'text-red-500'}`}>
+                  <div className={`h-2 w-2 rounded-full ${gradientStatus.connected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+                  {gradientStatus.connected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Mode</span>
+                <span className={`px-2 py-1 rounded text-xs ${gradientStatus.mock_mode ? 'bg-yellow-500/10 text-yellow-500' : 'bg-green-500/10 text-green-500'}`}>
+                  {gradientStatus.mock_mode ? 'Simulated' : 'Production'}
+                </span>
+              </div>
+              <div className="pt-3 border-t border-border/40">
+                <p className="text-xs text-muted-foreground">{gradientStatus.message}</p>
+              </div>
+              {gradientStatus.mock_mode && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
+                    <Sparkles className="h-3 w-3" />
+                    Running in mock mode for development
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Cloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Gradient status unavailable</p>
+              <p className="text-xs mt-1">Check service configuration</p>
+            </div>
+          )}
         </div>
       </div>
 

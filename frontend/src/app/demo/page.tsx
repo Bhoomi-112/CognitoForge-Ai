@@ -23,7 +23,9 @@ import {
   ArrowLeft,
   Code,
   Database,
-  Lock
+  Lock,
+  Cloud,
+  Server
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -573,6 +575,62 @@ function SecurityReport({
                 <p className="text-foreground leading-relaxed">
                   {analysisResult.gemini_metadata.ai_insight}
                 </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Show Gradient Task Metadata if available */}
+      {analysisResult?.gradient && (
+        <div className="glass p-6 rounded-lg mb-6 border-l-4 border-blue-500">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Cloud className="h-5 w-5 text-blue-500" />
+            <span>Gradient Execution Environment</span>
+          </h3>
+          <div className="grid md:grid-cols-3 gap-4 mb-4">
+            <div className="glass p-4 rounded-lg">
+              <div className="text-xs text-muted-foreground mb-1">Task Status</div>
+              <div className={`font-semibold text-lg ${
+                analysisResult.gradient.status === 'success' 
+                  ? 'text-green-500' 
+                  : analysisResult.gradient.status === 'error'
+                  ? 'text-red-500'
+                  : 'text-yellow-500'
+              }`}>
+                {analysisResult.gradient.status?.toUpperCase() || 'UNKNOWN'}
+              </div>
+            </div>
+            {analysisResult.gradient.metadata?.runtime_env && (
+              <div className="glass p-4 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1">Runtime Environment</div>
+                <div className="font-semibold text-sm text-primary">
+                  {analysisResult.gradient.metadata.runtime_env}
+                </div>
+              </div>
+            )}
+            {analysisResult.gradient.metadata?.execution_time && (
+              <div className="glass p-4 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1">Execution Time</div>
+                <div className="font-semibold text-lg text-blue-500">
+                  {analysisResult.gradient.metadata.execution_time}s
+                </div>
+              </div>
+            )}
+          </div>
+          {analysisResult.gradient.metadata?.instance_type && (
+            <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+              <div className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                <Server className="h-3 w-3" />
+                Instance Type: {analysisResult.gradient.metadata.instance_type}
+              </div>
+            </div>
+          )}
+          {analysisResult.gradient.mock && (
+            <div className="bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 mt-3">
+              <div className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
+                <AlertTriangle className="h-3 w-3" />
+                Running in simulated mode for development
               </div>
             </div>
           )}
