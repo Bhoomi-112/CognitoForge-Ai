@@ -743,3 +743,31 @@ async def list_all_simulations() -> dict[str, object]:
             status_code=500,
             detail={"error": "Failed to list simulations"}
         ) from exc
+
+
+@router.get("/api/gradient/status")
+async def get_gradient_status() -> dict[str, object]:
+    """Get DigitalOcean Gradient cluster status."""
+    
+    try:
+        from backend.app.services.gradient_service import get_gradient_status
+        
+        status = await run_in_threadpool(get_gradient_status)
+        logger.info("Gradient status fetched successfully")
+        
+        return {
+            "success": True,
+            "status": status
+        }
+    
+    except Exception as exc:
+        logger.exception("Failed to fetch Gradient status")
+        return {
+            "success": False,
+            "error": str(exc),
+            "status": {
+                "connected": False,
+                "mock_mode": True,
+                "message": "Gradient service unavailable"
+            }
+        }

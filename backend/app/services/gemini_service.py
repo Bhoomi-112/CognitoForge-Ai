@@ -682,7 +682,7 @@ def generate_gemini_attack_plan(
     
     while retry_count <= max_retries:
         try:
-            result = generate_gemini_response_rest(prompt)
+            result = generate_gemini_response(prompt)
             
             if "error" in result:
                 last_error = result["error"]

@@ -22,7 +22,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       link: "text-purple-400 underline-offset-4 hover:underline hover:text-purple-300",
       purple: "bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:from-purple-500 hover:to-violet-500 hover:shadow-xl hover:shadow-purple-500/50 glow-on-hover transform hover:scale-105",
       "purple-outline": "border-2 border-purple-400/60 text-purple-300 hover:bg-purple-500/25 hover:border-purple-400 hover:text-purple-100 hover:shadow-lg hover:shadow-purple-500/30",
-      "purple-ghost": "text-purple-400 hover:bg-purple-500/20 hover:text-purple-200 backdrop-blur-sm"
+      "purple-ghost": "text-purple-400 hover:bg-purple-500/20 hover:text-purple-200 backdrop-blur-sm",
+      brand: "bg-brand-primary text-white shadow-lg shadow-brand-dark/40 hover:bg-brand-secondary hover:shadow-brand-dark/60"
     }
     
     const sizes = {
