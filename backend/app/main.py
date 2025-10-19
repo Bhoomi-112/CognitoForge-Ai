@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.settings import get_settings
 from backend.app.routers import operations, ai
+from backend.app.integrations import init_snowflake
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CognitoForge Labs",
@@ -38,6 +42,20 @@ app.add_middleware(
 
 app.include_router(operations.router)
 app.include_router(ai.router)
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    """Initialise optional integrations once the application boots."""
+
+    try:
+        client = init_snowflake()
+        if client is not None:
+            logger.info("Snowflake integration initialised")
+        else:
+            logger.debug("Snowflake integration skipped (configuration missing or connector absent)")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Snowflake integration initialisation failed", extra={"error": str(exc)})
 
 
 @app.get("/health")

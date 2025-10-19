@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
+from backend.app.integrations import snowflake_service as snowflake_integration
 from backend.app.core.settings import get_settings
 from backend.app.models.schemas import (
     AttackPlan,
@@ -98,7 +99,39 @@ async def _attach_ai_insight(run: SimulationRun, report: SimulationReport) -> Op
     insight = await run_in_threadpool(generate_ai_insight, run, report)
     if insight:
         report.ai_insight = insight
+        await run_in_threadpool(
+            snowflake_integration.store_ai_insight,
+            run.repo_id,
+            run.run_id,
+            insight,
+        )
     return insight
+
+
+async def _fetch_report_from_snowflake(repo_id: str, run_id: Optional[str] = None) -> Optional[SimulationReport]:
+    """Attempt to build a report using Snowflake-sourced data."""
+
+    fetcher = snowflake_integration.fetch_latest_simulation_report
+    args: tuple[object, ...] = (repo_id,)
+    if run_id is not None:
+        fetcher = snowflake_integration.fetch_simulation_report
+        args = (repo_id, run_id)
+
+    payload = await run_in_threadpool(fetcher, *args)
+    if not payload:
+        return None
+
+    summary = payload.get("summary") or {}
+    resolved_run_id = str(payload.get("run_id") or run_id or "")
+    if not resolved_run_id:
+        return None
+
+    report = SimulationReport(repo_id=repo_id, run_id=resolved_run_id, summary=summary)
+    insight = payload.get("ai_insight")
+    if insight:
+        report.ai_insight = insight
+
+    return report
 
 
 def _validate_repo_id(repo_id: str) -> None:
@@ -180,6 +213,29 @@ async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
 
         _persist_simulation(run_record)  # Persistence hook sits here so future endpoints can read it back.
 
+        await run_in_threadpool(
+            snowflake_integration.store_simulation_run,
+            request.repo_id,
+            run_id,
+            {
+                "overall_severity": plan.overall_severity,
+                "timestamp": timestamp.isoformat(),
+            },
+        )
+
+        affected_file_rows = [
+            {"file_path": file_path, "severity": step.severity}
+            for step in plan.steps
+            for file_path in step.affected_files
+        ]
+        if affected_file_rows:
+            await run_in_threadpool(
+                snowflake_integration.store_affected_files,
+                request.repo_id,
+                run_id,
+                affected_file_rows,
+            )
+
         logger.info("/simulate_attack success", extra={"repo_id": request.repo_id, "run_id": run_id})
         return _to_dict(run_record)
     except HTTPException:
@@ -242,6 +298,24 @@ async def get_latest_simulation_report(repo_id: str) -> dict[str, object]:
     logger.info("/reports latest request received", extra={"repo_id": repo_id})
     _validate_repo_id(repo_id)
     try:
+        snowflake_report = await _fetch_report_from_snowflake(repo_id)
+        if snowflake_report:
+            if snowflake_report.ai_insight is None:
+                try:
+                    run = load_simulation(repo_id, snowflake_report.run_id)
+                except (SimulationNotFoundError, SimulationDataError) as exc:
+                    logger.warning(
+                        "/reports latest missing local artefact",
+                        extra={"repo_id": repo_id, "run_id": snowflake_report.run_id, "error": str(exc)},
+                    )
+                else:
+                    await _attach_ai_insight(run, snowflake_report)
+            logger.info(
+                "/reports latest served via Snowflake",
+                extra={"repo_id": repo_id, "run_id": snowflake_report.run_id},
+            )
+            return _to_dict(snowflake_report)
+
         summaries = list_simulations(repo_id)
         if not summaries:
             logger.warning("/reports latest not found", extra={"repo_id": repo_id})
@@ -323,6 +397,24 @@ async def get_simulation_report(repo_id: str, run_id: str) -> dict[str, object]:
     logger.info("/reports detail request received", extra={"repo_id": repo_id, "run_id": run_id})
     _validate_repo_id(repo_id)
     try:
+        snowflake_report = await _fetch_report_from_snowflake(repo_id, run_id)
+        if snowflake_report:
+            if snowflake_report.ai_insight is None:
+                try:
+                    run = load_simulation(repo_id, run_id)
+                except (SimulationNotFoundError, SimulationDataError) as exc:
+                    logger.warning(
+                        "/reports detail missing local artefact",
+                        extra={"repo_id": repo_id, "run_id": run_id, "error": str(exc)},
+                    )
+                else:
+                    await _attach_ai_insight(run, snowflake_report)
+            logger.info(
+                "/reports detail served via Snowflake",
+                extra={"repo_id": repo_id, "run_id": run_id},
+            )
+            return _to_dict(snowflake_report)
+
         run = load_simulation(repo_id, run_id)
         report = _build_report(run)
         insight = await _attach_ai_insight(run, report)
