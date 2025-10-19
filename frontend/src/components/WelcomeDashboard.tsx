@@ -6,6 +6,7 @@ import { Shield, GitBranch, Clock, TrendingUp, AlertTriangle, CheckCircle, Play,
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { GeminiPanel } from './GeminiPanel';
+import Link from 'next/link';
 
 export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => void }) {
   const { user } = useAuth0();
@@ -156,7 +157,7 @@ export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => v
           </div>
         </div>
 
-        <div className="glass p-6 rounded-lg border border-border/40 hover:border-primary/50 transition-colors cursor-pointer group">
+        <Link href="/dashboard" className="glass p-6 rounded-lg border border-border/40 hover:border-primary/50 transition-colors cursor-pointer group block">
           <div className="flex items-start gap-4">
             <div className="p-3 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
               <Shield className="h-6 w-6 text-blue-500" />
@@ -171,7 +172,7 @@ export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => v
               </Button>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* AI Security Analyst Card - NEW! */}
         <motion.div 

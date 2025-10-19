@@ -609,3 +609,419 @@ def generate_gemini_response(prompt: str) -> dict:
             "error": error_msg,
             "exception": str(exc)
         }
+
+
+# ============================================================================
+# NEW GEMINI ATTACK PLAN GENERATION (Feature Flag Controlled)
+# ============================================================================
+
+def generate_gemini_attack_plan(
+    repo_profile: Dict[str, object],
+    max_steps: int = 3
+) -> Dict[str, object]:
+    """
+    Generate AI-powered attack plan using Gemini REST API with structured prompt.
+    
+    Args:
+        repo_profile: Repository context including manifest, high-risk files, languages, dependencies
+        max_steps: Maximum number of attack steps to generate (default: 3)
+    
+    Returns:
+        Dict containing:
+        - attack_id: Unique identifier
+        - overall_severity: critical/high/medium/low
+        - steps: List of attack steps with MITRE technique IDs
+        - gemini_prompt: Original prompt sent to Gemini
+        - gemini_raw_response: Raw Gemini API response
+        - plan_source: "gemini" or "fallback"
+        - ai_insight: Summary insight from Gemini (if available)
+    
+    Security:
+        - Sanitizes returned text (no direct commands, no inline secrets)
+        - Validates file paths exist in repo_profile
+        - Rate-limited and timeout-protected
+        - Falls back to deterministic plan if Gemini fails or disabled
+    """
+    settings = get_settings()
+    repo_id = repo_profile.get("repo_id", "unknown")
+    
+    # Check if Gemini is enabled
+    if not settings.use_gemini or not settings.gemini_api_key:
+        logger.info(
+            "Using fallback attack plan (Gemini disabled or API key missing)",
+            extra={
+                "repo_id": repo_id,
+                "use_gemini": settings.use_gemini,
+                "has_api_key": bool(settings.gemini_api_key)
+            }
+        )
+        return _build_fallback_attack_plan(repo_id, "fallback")
+    
+    # Build structured prompt
+    try:
+        prompt = _build_attack_plan_prompt(repo_profile, max_steps)
+        logger.debug(
+            "Gemini attack plan prompt generated",
+            extra={
+                "repo_id": repo_id,
+                "prompt_length": len(prompt),
+                "max_steps": max_steps
+            }
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to build Gemini prompt",
+            extra={"repo_id": repo_id, "error": str(exc)}
+        )
+        return _build_fallback_attack_plan(repo_id, "fallback")
+    
+    # Call Gemini REST API with retry logic
+    max_retries = 2
+    retry_count = 0
+    last_error = None
+    
+    while retry_count <= max_retries:
+        try:
+            result = generate_gemini_response_rest(prompt)
+            
+            if "error" in result:
+                last_error = result["error"]
+                retry_count += 1
+                if retry_count <= max_retries:
+                    logger.warning(
+                        f"Gemini API call failed, retrying ({retry_count}/{max_retries})",
+                        extra={"repo_id": repo_id, "error": last_error}
+                    )
+                    continue
+                else:
+                    logger.error(
+                        "Gemini API failed after all retries",
+                        extra={"repo_id": repo_id, "error": last_error, "retries": max_retries}
+                    )
+                    return _build_fallback_attack_plan(repo_id, "fallback")
+            
+            # Success - parse response
+            raw_response = result.get("text", "")
+            model_used = result.get("model", settings.gemini_model)
+            
+            logger.info(
+                "Gemini attack plan response received",
+                extra={
+                    "repo_id": repo_id,
+                    "model": model_used,
+                    "response_length": len(raw_response)
+                }
+            )
+            
+            # Parse and validate JSON response
+            try:
+                attack_plan = _parse_and_validate_attack_plan(
+                    raw_response, 
+                    repo_profile,
+                    max_steps
+                )
+                
+                # Add metadata
+                attack_plan["gemini_prompt"] = prompt
+                attack_plan["gemini_raw_response"] = raw_response
+                attack_plan["plan_source"] = "gemini"
+                attack_plan["model_used"] = model_used
+                attack_plan["repo_id"] = repo_id
+                
+                logger.info(
+                    "Gemini attack plan successfully generated and validated",
+                    extra={
+                        "repo_id": repo_id,
+                        "steps": len(attack_plan.get("steps", [])),
+                        "overall_severity": attack_plan.get("overall_severity")
+                    }
+                )
+                
+                return attack_plan
+                
+            except (json.JSONDecodeError, ValueError, KeyError) as exc:
+                logger.error(
+                    "Failed to parse Gemini response",
+                    extra={
+                        "repo_id": repo_id,
+                        "error": str(exc),
+                        "response_preview": raw_response[:500]
+                    }
+                )
+                return _build_fallback_attack_plan(repo_id, "fallback")
+                
+        except Exception as exc:
+            last_error = str(exc)
+            retry_count += 1
+            logger.exception(
+                f"Unexpected error calling Gemini ({retry_count}/{max_retries})",
+                extra={"repo_id": repo_id, "error": str(exc)}
+            )
+            if retry_count > max_retries:
+                return _build_fallback_attack_plan(repo_id, "fallback")
+    
+    # Should not reach here, but safety fallback
+    return _build_fallback_attack_plan(repo_id, "fallback")
+
+
+def _build_attack_plan_prompt(repo_profile: Dict[str, object], max_steps: int) -> str:
+    """
+    Build structured prompt for Gemini to generate attack plan.
+    
+    Prompt template instructs Gemini to:
+    - Act as red-team security analyst
+    - Produce JSON with attack steps
+    - Include MITRE ATT&CK technique IDs
+    - Reference only files from provided manifest
+    - Not include executable payloads or secrets
+    """
+    repo_id = repo_profile.get("repo_id", "unknown")
+    manifest = repo_profile.get("manifest", {})
+    high_risk_files = repo_profile.get("high_risk_files", [])
+    languages = repo_profile.get("languages", [])
+    dependencies = repo_profile.get("dependencies", [])
+    
+    # Build file list for context
+    file_list = []
+    if high_risk_files:
+        file_list = [
+            {
+                "path": f.get("path"),
+                "risk_level": f.get("risk_level"),
+                "risk_reasons": f.get("risk_reasons", [])
+            }
+            for f in high_risk_files[:10]  # Limit to top 10
+            if f.get("path")
+        ]
+    
+    # Build repository context summary
+    repo_context = {
+        "repo_id": repo_id,
+        "total_files": manifest.get("file_count", 0),
+        "high_risk_files_count": len(high_risk_files),
+        "primary_languages": languages[:5] if languages else [],
+        "key_dependencies": dependencies[:10] if dependencies else [],
+        "high_risk_files": file_list
+    }
+    
+    prompt = f"""You are a red-team security analyst for DevSecOps. Given the repository context below, produce a concise, structured JSON attack plan with up to {max_steps} steps.
+
+For each step include:
+- step_number: integer starting at 1
+- description: one-sentence description of the attacker action
+- technique_id: MITRE ATT&CK technique ID (e.g., T1078, T1552, T1068) if applicable
+- severity: one of [critical, high, medium, low]
+- affected_files: array of file paths from the provided file list
+
+IMPORTANT CONSTRAINTS:
+1. Validate that all affected_files paths exist in the provided high_risk_files list
+2. Do NOT return executable payloads, secrets, or live credentials
+3. Output MUST be valid JSON only (no markdown, no explanations)
+4. Be realistic and actionable - focus on actual vulnerabilities based on file types and names
+5. Map each step to appropriate MITRE ATT&CK techniques
+
+Repository context:
+{json.dumps(repo_context, indent=2)}
+
+Required JSON output structure:
+{{
+  "overall_severity": "critical|high|medium|low",
+  "ai_insight": "Brief 1-2 sentence summary of overall attack surface",
+  "steps": [
+    {{
+      "step_number": 1,
+      "description": "Concise description of attack step",
+      "technique_id": "T1552",
+      "severity": "critical|high|medium|low",
+      "affected_files": ["path/to/file.ext"]
+    }}
+  ]
+}}
+
+Output only the JSON object, nothing else:"""
+    
+    return prompt
+
+
+def _parse_and_validate_attack_plan(
+    raw_response: str,
+    repo_profile: Dict[str, object],
+    max_steps: int
+) -> Dict[str, object]:
+    """
+    Parse Gemini JSON response and validate/sanitize attack plan.
+    
+    Security checks:
+    - Strip any direct commands or shell code
+    - Remove inline secrets (API keys, tokens, passwords)
+    - Validate file paths exist in repo_profile
+    - Ensure severity values are valid
+    - Limit to max_steps
+    """
+    # Extract JSON from response (handle markdown code blocks)
+    json_text = raw_response.strip()
+    
+    # Remove markdown code blocks if present
+    if json_text.startswith("```"):
+        lines = json_text.split("\n")
+        json_text = "\n".join(lines[1:-1]) if len(lines) > 2 else json_text
+        json_text = json_text.replace("```json", "").replace("```", "").strip()
+    
+    # Parse JSON
+    try:
+        plan_data = json.loads(json_text)
+    except json.JSONDecodeError:
+        # Try to extract JSON object with regex as fallback
+        match = re.search(r'\{[\s\S]*\}', json_text)
+        if match:
+            plan_data = json.loads(match.group(0))
+        else:
+            raise ValueError("No valid JSON found in Gemini response")
+    
+    # Validate structure
+    if not isinstance(plan_data, dict):
+        raise ValueError("Gemini response is not a JSON object")
+    
+    if "steps" not in plan_data or not isinstance(plan_data["steps"], list):
+        raise ValueError("Gemini response missing 'steps' array")
+    
+    # Get valid file paths from repo_profile
+    valid_files = set()
+    high_risk_files = repo_profile.get("high_risk_files", [])
+    for f in high_risk_files:
+        if path := f.get("path"):
+            valid_files.add(path)
+    
+    # Validate and sanitize each step
+    sanitized_steps = []
+    for i, step in enumerate(plan_data["steps"][:max_steps]):
+        if not isinstance(step, dict):
+            continue
+        
+        # Sanitize description (remove potential commands)
+        description = str(step.get("description", "")).strip()
+        description = _sanitize_text(description)
+        
+        # Validate severity
+        severity = str(step.get("severity", "medium")).lower()
+        if severity not in _ALLOWED_SEVERITIES:
+            severity = "medium"
+        
+        # Validate and filter affected_files
+        affected_files = step.get("affected_files", [])
+        if isinstance(affected_files, list):
+            # Only include files that exist in repo_profile
+            affected_files = [
+                f for f in affected_files
+                if isinstance(f, str) and (f in valid_files or not valid_files)
+            ][:5]  # Limit to 5 files per step
+        else:
+            affected_files = []
+        
+        sanitized_step = {
+            "step_number": i + 1,
+            "description": description,
+            "technique_id": str(step.get("technique_id", "")).strip() or "N/A",
+            "severity": severity,
+            "affected_files": affected_files
+        }
+        
+        sanitized_steps.append(sanitized_step)
+    
+    if not sanitized_steps:
+        raise ValueError("No valid steps found in Gemini response")
+    
+    # Validate overall severity
+    overall_severity = str(plan_data.get("overall_severity", "high")).lower()
+    if overall_severity not in _ALLOWED_SEVERITIES:
+        overall_severity = _DEFAULT_OVERALL_SEVERITY
+    
+    # Extract AI insight
+    ai_insight = str(plan_data.get("ai_insight", "")).strip()
+    ai_insight = _sanitize_text(ai_insight) if ai_insight else "AI-generated attack plan"
+    
+    return {
+        "overall_severity": overall_severity,
+        "ai_insight": ai_insight,
+        "steps": sanitized_steps
+    }
+
+
+def _sanitize_text(text: str) -> str:
+    """
+    Remove potentially dangerous content from text.
+    
+    - Strip shell commands (rm, curl, wget, etc.)
+    - Remove apparent API keys/tokens
+    - Remove inline code execution
+    """
+    if not text:
+        return ""
+    
+    # Remove common dangerous patterns
+    dangerous_patterns = [
+        r'rm\s+-rf',
+        r'curl\s+',
+        r'wget\s+',
+        r'bash\s+',
+        r'sh\s+',
+        r'exec\(',
+        r'eval\(',
+        r'os\.system',
+        r'subprocess\.',
+    ]
+    
+    for pattern in dangerous_patterns:
+        text = re.sub(pattern, '[REDACTED]', text, flags=re.IGNORECASE)
+    
+    # Remove apparent secrets (basic pattern matching)
+    # API keys: AIza..., sk-...
+    text = re.sub(r'AIza[0-9A-Za-z_-]{35}', '[REDACTED_API_KEY]', text)
+    text = re.sub(r'sk-[0-9A-Za-z]{48}', '[REDACTED_API_KEY]', text)
+    
+    # Generic tokens
+    text = re.sub(r'[A-Za-z0-9_-]{40,}', lambda m: '[REDACTED_TOKEN]' if any(c.isdigit() and c.isalpha() for c in m.group()) else m.group(), text)
+    
+    return text.strip()
+
+
+def _build_fallback_attack_plan(repo_id: str, source: str) -> Dict[str, object]:
+    """
+    Build deterministic fallback attack plan when Gemini is unavailable.
+    
+    Returns same structure as Gemini-generated plan for API compatibility.
+    """
+    fallback_steps = [
+        {
+            "step_number": 1,
+            "description": "Initial access via exposed CI token in repository secrets",
+            "technique_id": "T1552",
+            "severity": "high",
+            "affected_files": [".github/workflows/deploy.yml"]
+        },
+        {
+            "step_number": 2,
+            "description": "Privilege escalation through misconfigured Kubernetes RBAC manifests",
+            "technique_id": "T1068",
+            "severity": "critical",
+            "affected_files": ["deploy/k8s/rbac.yaml"]
+        },
+        {
+            "step_number": 3,
+            "description": "Establish persistence by modifying container entrypoint script",
+            "technique_id": "T1547",
+            "severity": "medium",
+            "affected_files": ["docker/entrypoint.sh"]
+        }
+    ]
+    
+    return {
+        "repo_id": repo_id,
+        "overall_severity": "critical",
+        "ai_insight": "Deterministic fallback plan - Gemini unavailable",
+        "steps": fallback_steps,
+        "plan_source": source,
+        "gemini_prompt": None,
+        "gemini_raw_response": None,
+        "model_used": None
+    }

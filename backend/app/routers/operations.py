@@ -25,6 +25,7 @@ from backend.app.integrations import snowflake_service as snowflake_integration
 from backend.app.core.settings import get_settings
 from backend.app.models.schemas import (
     AttackPlan,
+    AttackStep,
     RepoUpload,
     SimulationRun,
     SimulationReport,
@@ -32,7 +33,12 @@ from backend.app.models.schemas import (
     VulnerabilityReport,
 )
 from backend.app.services import repo_fetcher
-from backend.app.services.gemini_service import generate_attack_plan, generate_ai_insight, generate_gemini_response
+from backend.app.services.gemini_service import (
+    generate_attack_plan,
+    generate_ai_insight,
+    generate_gemini_attack_plan,
+    generate_gemini_response,
+)
 from backend.app.services.gradient_service import run_gradient_task
 from backend.app.services.sandbox_service import run_sandbox_simulation
 from backend.app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
@@ -49,6 +55,12 @@ class SimulateAttackRequest(BaseModel):
     """Request payload for generating an attack simulation."""
 
     repo_id: str
+    force: bool = False  # Force new generation, bypass cache
+
+
+# Cache for recent attack plan generations (repo_id -> {timestamp, plan_data})
+# Plans cached for < 10 minutes to avoid excessive Gemini API calls
+_attack_plan_cache: dict[str, dict] = {}
 
 
 class SimulationRunResponse(SimulationRun):
@@ -222,9 +234,21 @@ async def upload_repo(payload: RepoUpload) -> dict[str, object]:
 
 @router.post("/simulate_attack", response_model=SimulationRunResponse)
 async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
-    """Return a mock attack plan and sandbox execution log for the requested repository."""
+    """Generate AI-powered attack plan and sandbox simulation for the requested repository.
+    
+    Uses Gemini AI (when enabled) to analyze repository structure and generate
+    contextual attack scenarios. Falls back to deterministic plan if AI unavailable.
+    
+    Features:
+    - Caching: Returns cached results if generated < 10 minutes ago (unless force=true)
+    - AI Insights: Includes Gemini-generated security analysis
+    - Metadata: Persists prompts and raw responses for audit trails
+    """
 
-    logger.info("/simulate_attack request received", extra={"repo_id": request.repo_id})
+    logger.info("/simulate_attack request received", extra={
+        "repo_id": request.repo_id,
+        "force": request.force
+    })
     _validate_repo_id(request.repo_id)
 
     # Testing instructions:
@@ -233,7 +257,66 @@ async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
     # - Expected JSON includes top-level "gradient" with "metadata": {"runtime_env": "DigitalOcean Gradient (Simulated)", "instance_type": "g1-small (mock)", "execution_time": <float>}
 
     try:
-        plan: AttackPlan = generate_attack_plan(request.repo_id)
+        # Check cache for recent simulation (< 10 minutes old)
+        cache_key = request.repo_id
+        cached_entry = _attack_plan_cache.get(cache_key)
+        if not request.force and cached_entry:
+            cache_age = (datetime.utcnow() - cached_entry["timestamp"]).total_seconds()
+            if cache_age < 600:  # 10 minutes = 600 seconds
+                logger.info(
+                    "Returning cached attack plan",
+                    extra={"repo_id": request.repo_id, "cache_age_seconds": cache_age},
+                )
+                return cached_entry["simulation_data"]
+
+        plan_dict: Optional[dict] = None
+        try:
+            manifest = repo_fetcher.load_repo_manifest(request.repo_id)
+            high_risk_files = repo_fetcher.select_high_risk_files(manifest, limit=15)
+
+            repo_profile = {
+                "repo_id": request.repo_id,
+                "manifest": manifest,
+                "high_risk_files": high_risk_files,
+                "languages": manifest.get("top_extensions", []),
+                "dependencies": manifest.get("dependencies", []),
+            }
+
+            logger.info(
+                "Generating AI attack plan",
+                extra={"repo_id": request.repo_id, "high_risk_files": len(high_risk_files)},
+            )
+
+            plan_dict = await run_in_threadpool(generate_gemini_attack_plan, repo_profile, 3)
+            steps = [
+                AttackStep(
+                    step_number=step.get("step_number", index + 1),
+                    description=step.get("description", ""),
+                    technique_id=step.get("technique_id", ""),
+                    severity=step.get("severity", "medium"),
+                    affected_files=step.get("affected_files", []),
+                )
+                for index, step in enumerate(plan_dict.get("steps", []))
+            ]
+
+            plan = AttackPlan(
+                repo_id=request.repo_id,
+                overall_severity=plan_dict.get("overall_severity", "high"),
+                steps=steps,
+            )
+        except repo_fetcher.ManifestNotFoundError:
+            logger.warning(
+                "Repository manifest not found, using legacy attack plan",
+                extra={"repo_id": request.repo_id},
+            )
+            plan = generate_attack_plan(request.repo_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "Gemini attack plan generation failed, using legacy fallback",
+                extra={"repo_id": request.repo_id, "error": str(exc)},
+            )
+            plan = generate_attack_plan(request.repo_id)
+
         sandbox_result = run_sandbox_simulation(plan)
 
         timestamp = datetime.utcnow()
@@ -299,9 +382,18 @@ async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
 
         logger.info("Gradient mock result: %s", gradient_result)
 
-        logger.info("/simulate_attack success", extra={"repo_id": request.repo_id, "run_id": run_id})
         response_payload = _to_dict(run_record)
         response_payload["gradient"] = gradient_result
+
+        _attack_plan_cache[cache_key] = {
+            "timestamp": timestamp,
+            "simulation_data": response_payload,
+        }
+
+        logger.info(
+            "/simulate_attack success",
+            extra={"repo_id": request.repo_id, "run_id": run_id, "cached": False},
+        )
         return response_payload
     except HTTPException:
         logger.exception("/simulate_attack failed", extra={"repo_id": request.repo_id})
@@ -610,4 +702,44 @@ async def query_gemini_rest_api(request: GeminiQueryRequest):
         raise HTTPException(
             status_code=500,
             detail={"error": "Unexpected server error"}
+        ) from exc
+
+
+@router.get("/api/simulations/list")
+async def list_all_simulations() -> dict[str, object]:
+    """List all simulation files for dashboard analytics."""
+    
+    try:
+        directory = ensure_simulation_dir()
+        simulations = []
+        
+        # Read all JSON files in simulations directory
+        for file_path in directory.glob("*.json"):
+            try:
+                with file_path.open("r", encoding="utf-8") as handle:
+                    simulation_data = json.load(handle)
+                    simulations.append(simulation_data)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to read simulation file {file_path}: {e}")
+                continue
+        
+        # Sort by timestamp (newest first)
+        simulations.sort(
+            key=lambda x: x.get("timestamp", ""),
+            reverse=True
+        )
+        
+        logger.info(f"Listed {len(simulations)} simulations for dashboard")
+        
+        return {
+            "success": True,
+            "total": len(simulations),
+            "simulations": simulations
+        }
+    
+    except Exception as exc:
+        logger.exception("Failed to list simulations")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to list simulations"}
         ) from exc

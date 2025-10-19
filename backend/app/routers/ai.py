@@ -222,3 +222,125 @@ async def query_gemini(request: GeminiRequest) -> GeminiSuccessResponse:
                 "details": f"{type(exc).__name__}: {str(exc)}",
             },
         ) from exc
+
+
+@router.get("/gemini/insight/{repo_id}")
+async def get_gemini_insight_for_repo(repo_id: str) -> dict[str, object]:
+    """Generate AI-powered security insight for a repository using Gemini.
+    
+    Returns AI analysis of repository security posture based on the latest
+    simulation or repository structure. Requires USE_GEMINI=true.
+    
+    Args:
+        repo_id: Repository identifier (alphanumeric, hyphens, underscores only)
+        
+    Returns:
+        Dictionary with insight, source, and optional metadata
+    """
+    from backend.app.services import repo_fetcher
+    from backend.app.services.gemini_service import generate_ai_insight
+    from backend.app.utils.storage import (
+        SimulationDataError,
+        SimulationNotFoundError,
+        list_simulations,
+        load_simulation,
+    )
+    from backend.app.routers.operations import _build_report
+    from backend.app.core.settings import get_settings
+    import re
+    
+    # Validate repo_id format
+    REPO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+    if not REPO_ID_PATTERN.fullmatch(repo_id):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error": "Invalid repo_id format. Use only alphanumeric characters, hyphens, and underscores."
+            }
+        )
+    
+    logger.info("/api/gemini/insight request received", extra={"repo_id": repo_id})
+    
+    settings = get_settings()
+    if not settings.use_gemini or not settings.gemini_api_key:
+        return {
+            "repo_id": repo_id,
+            "insight": "AI insights are disabled. Set USE_GEMINI=true and configure GEMINI_API_KEY.",
+            "source": "disabled"
+        }
+    
+    try:
+        # Try to get insight from latest simulation first
+        try:
+            summaries = list_simulations(repo_id)
+            if summaries:
+                summaries.sort(key=lambda item: item.timestamp, reverse=True)
+                latest_run = load_simulation(repo_id, summaries[0].run_id)
+                report = _build_report(latest_run)
+                
+                insight = await run_in_threadpool(generate_ai_insight, latest_run, report)
+                
+                if insight:
+                    logger.info("/api/gemini/insight success from simulation", extra={
+                        "repo_id": repo_id,
+                        "run_id": summaries[0].run_id
+                    })
+                    return {
+                        "repo_id": repo_id,
+                        "insight": insight,
+                        "source": "simulation",
+                        "run_id": summaries[0].run_id
+                    }
+        except (SimulationNotFoundError, SimulationDataError):
+            pass  # Fall through to manifest-based insight
+        
+        # Fallback: Generate insight from repository manifest
+        try:
+            manifest = repo_fetcher.load_repo_manifest(repo_id)
+            high_risk_files = repo_fetcher.select_high_risk_files(manifest, limit=10)
+            
+            # Create a simple prompt for general repo insight
+            prompt = f"""Analyze this repository's security posture:
+            
+Repository: {repo_id}
+Total files: {manifest.get('file_count', 0)}
+High-risk files: {len(high_risk_files)}
+Key files: {', '.join([f.get('path', '') for f in high_risk_files[:5]])}
+
+Provide a 2-3 sentence security assessment highlighting key risks."""
+
+            result = await run_in_threadpool(generate_gemini_response, prompt)
+            
+            if "text" in result:
+                logger.info("/api/gemini/insight success from manifest", extra={
+                    "repo_id": repo_id
+                })
+                return {
+                    "repo_id": repo_id,
+                    "insight": result["text"],
+                    "source": "manifest"
+                }
+            else:
+                return {
+                    "repo_id": repo_id,
+                    "insight": "Unable to generate AI insight at this time.",
+                    "source": "error",
+                    "error": result.get("error", "Unknown error")
+                }
+                
+        except repo_fetcher.ManifestNotFoundError:
+            return {
+                "repo_id": repo_id,
+                "insight": "Repository not analyzed yet. Please upload or analyze the repository first.",
+                "source": "not_found"
+            }
+    
+    except Exception as exc:
+        logger.exception("/api/gemini/insight failed", extra={"repo_id": repo_id})
+        return {
+            "repo_id": repo_id,
+            "insight": "An error occurred while generating AI insight.",
+            "source": "error",
+            "error": str(exc)
+        }

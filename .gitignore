@@ -100,3 +100,7 @@ auth0-deploy-cli-state.json
 *.sqlite
 *.sqlite3
 *.db
+
+# Simulation data (test/local data)
+backend/app/data/simulations/*.json
+backend/data/repos/
