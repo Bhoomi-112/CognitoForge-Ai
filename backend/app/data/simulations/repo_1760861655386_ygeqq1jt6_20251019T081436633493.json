@@ -1,0 +1,66 @@
+{
+  "repo_id": "repo_1760861655386_ygeqq1jt6",
+  "run_id": "repo_1760861655386_ygeqq1jt6_20251019T081436633493",
+  "timestamp": "2025-10-19T08:14:36.633493",
+  "plan": {
+    "repo_id": "repo_1760861655386_ygeqq1jt6",
+    "overall_severity": "high",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker analyzes `frontend/.env.example` to identify the names and expected format of sensitive environment variables, aiding in subsequent targeted credential harvesting or environment variable injection attacks.",
+        "technique_id": "T1592",
+        "severity": "high",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker reviews `frontend/package.json`, `frontend/package-lock.json`, and `Move.toml` to discover vulnerable software dependencies or identify potential targets for dependency confusion attacks.",
+        "technique_id": "T1195.002",
+        "severity": "high",
+        "affected_files": [
+          "frontend/package-lock.json",
+          "frontend/package.json",
+          "Move.toml"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker examines `Move.toml`, `frontend/package.json`, and `frontend/tsconfig.json` to identify sensitive build configurations, internal resource paths, or exposed deployment details that could lead to further exploitation.",
+        "technique_id": "T1592",
+        "severity": "high",
+        "affected_files": [
+          "Move.toml",
+          "frontend/package.json",
+          "frontend/tsconfig.json"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "repo_1760861655386_ygeqq1jt6",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T08:14:36.633478Z",
+        "step": 1,
+        "action": "An attacker analyzes `frontend/.env.example` to identify the names and expected format of sensitive environment variables, aiding in subsequent targeted credential harvesting or environment variable injection attacks.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T08:14:36.633488Z",
+        "step": 2,
+        "action": "An attacker reviews `frontend/package.json`, `frontend/package-lock.json`, and `Move.toml` to discover vulnerable software dependencies or identify potential targets for dependency confusion attacks.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T08:14:36.633490Z",
+        "step": 3,
+        "action": "An attacker examines `Move.toml`, `frontend/package.json`, and `frontend/tsconfig.json` to identify sensitive build configurations, internal resource paths, or exposed deployment details that could lead to further exploitation.",
+        "status": "success"
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "repo_id": "aptos-meme-nft-minter",
+  "run_id": "aptos-meme-nft-minter_20251019T101557602525",
+  "timestamp": "2025-10-19T10:15:57.602525",
+  "plan": {
+    "repo_id": "aptos-meme-nft-minter",
+    "overall_severity": "critical",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker can analyze `frontend/.env.example` to understand the types of sensitive environment variables required by the application, which serves as critical reconnaissance for finding actual secrets in other locations or during runtime.",
+        "technique_id": "T1589.001",
+        "severity": "medium",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker can analyze `frontend/package.json`, `frontend/package-lock.json`, and `Move.toml` to identify outdated or vulnerable dependencies, or to prepare for dependency confusion attacks, potentially leading to code execution or smart contract exploits.",
+        "technique_id": "T1195.002",
+        "severity": "critical",
+        "affected_files": [
+          "frontend/package.json",
+          "frontend/package-lock.json",
+          "Move.toml"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker can examine `Move.toml` for hardcoded sensitive information, such as developer wallet addresses, testnet private keys, or misconfigurations that could expose the smart contract to unauthorized actions or resource manipulation.",
+        "technique_id": "T1552.001",
+        "severity": "high",
+        "affected_files": [
+          "Move.toml"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "aptos-meme-nft-minter",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T10:15:57.602509Z",
+        "step": 1,
+        "action": "An attacker can analyze `frontend/.env.example` to understand the types of sensitive environment variables required by the application, which serves as critical reconnaissance for finding actual secrets in other locations or during runtime.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T10:15:57.602519Z",
+        "step": 2,
+        "action": "An attacker can analyze `frontend/package.json`, `frontend/package-lock.json`, and `Move.toml` to identify outdated or vulnerable dependencies, or to prepare for dependency confusion attacks, potentially leading to code execution or smart contract exploits.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T10:15:57.602521Z",
+        "step": 3,
+        "action": "An attacker can examine `Move.toml` for hardcoded sensitive information, such as developer wallet addresses, testnet private keys, or misconfigurations that could expose the smart contract to unauthorized actions or resource manipulation.",
+        "status": "success"
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "repo_id": "aptos-meme-nft-minter",
+  "run_id": "aptos-meme-nft-minter_20251019T113737489750",
+  "timestamp": "2025-10-19T11:37:37.489750",
+  "plan": {
+    "repo_id": "aptos-meme-nft-minter",
+    "overall_severity": "high",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker can identify the names of sensitive environment variables expected by the frontend application from the example configuration, enabling targeted reconnaissance for API keys, RPC endpoints, or other credentials if a real .env file is accidentally exposed.",
+        "technique_id": "T1589.001",
+        "severity": "medium",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker can analyze the 'frontend/package.json' and 'frontend/package-lock.json' files for the frontend, and 'Move.toml' for the smart contract, to identify vulnerable dependencies that could lead to code execution or smart contract exploitation.",
+        "technique_id": "T1195.002",
+        "severity": "high",
+        "affected_files": [
+          "frontend/package.json",
+          "frontend/package-lock.json",
+          "Move.toml"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker can examine the 'Move.toml' file to understand the smart contract's deployment configuration, dependencies, and named addresses, potentially revealing misconfigurations or reliance on vulnerable standard libraries on the Aptos blockchain.",
+        "technique_id": "T1592.002",
+        "severity": "high",
+        "affected_files": [
+          "Move.toml"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "aptos-meme-nft-minter",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T11:37:37.489734Z",
+        "step": 1,
+        "action": "An attacker can identify the names of sensitive environment variables expected by the frontend application from the example configuration, enabling targeted reconnaissance for API keys, RPC endpoints, or other credentials if a real .env file is accidentally exposed.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T11:37:37.489744Z",
+        "step": 2,
+        "action": "An attacker can analyze the 'frontend/package.json' and 'frontend/package-lock.json' files for the frontend, and 'Move.toml' for the smart contract, to identify vulnerable dependencies that could lead to code execution or smart contract exploitation.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T11:37:37.489746Z",
+        "step": 3,
+        "action": "An attacker can examine the 'Move.toml' file to understand the smart contract's deployment configuration, dependencies, and named addresses, potentially revealing misconfigurations or reliance on vulnerable standard libraries on the Aptos blockchain.",
+        "status": "success"
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "repo_id": "aptos-meme-nft-minter",
+  "run_id": "aptos-meme-nft-minter_20251019T092453012937",
+  "timestamp": "2025-10-19T09:24:53.012937",
+  "plan": {
+    "repo_id": "aptos-meme-nft-minter",
+    "overall_severity": "critical",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker reviews `frontend/.env.example` to enumerate potential API keys, service endpoints, or other sensitive configuration parameters that the application expects, aiding in further reconnaissance.",
+        "technique_id": "T1592.002",
+        "severity": "high",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker analyzes `frontend/package.json` and `frontend/package-lock.json` to identify vulnerable software dependencies or insecure build scripts, aiming to compromise the frontend application or its build pipeline through a supply chain attack.",
+        "technique_id": "T1195.002",
+        "severity": "high",
+        "affected_files": [
+          "frontend/package.json",
+          "frontend/package-lock.json"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker examines `Move.toml` to discover deployed Aptos contract addresses, understand external module dependencies, and identify potential misconfigurations in the smart contract deployment or interaction, which could lead to on-chain exploits and direct financial loss.",
+        "technique_id": "T1592.002",
+        "severity": "critical",
+        "affected_files": [
+          "Move.toml"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "aptos-meme-nft-minter",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T09:24:53.012919Z",
+        "step": 1,
+        "action": "An attacker reviews `frontend/.env.example` to enumerate potential API keys, service endpoints, or other sensitive configuration parameters that the application expects, aiding in further reconnaissance.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T09:24:53.012930Z",
+        "step": 2,
+        "action": "An attacker analyzes `frontend/package.json` and `frontend/package-lock.json` to identify vulnerable software dependencies or insecure build scripts, aiming to compromise the frontend application or its build pipeline through a supply chain attack.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T09:24:53.012933Z",
+        "step": 3,
+        "action": "An attacker examines `Move.toml` to discover deployed Aptos contract addresses, understand external module dependencies, and identify potential misconfigurations in the smart contract deployment or interaction, which could lead to on-chain exploits and direct financial loss.",
+        "status": "success"
+      }
+    ]
+  }
+}
