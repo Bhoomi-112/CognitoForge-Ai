@@ -11,6 +11,7 @@ from backend.app.core.settings import get_settings
 from backend.app.integrations import init_snowflake
 from backend.app.routers import ai, operations
 from backend.app.services.gradient_service import init_gradient, run_gradient_task
+import os
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -32,6 +33,16 @@ allowed_origins = {
 }
 if settings.auth0_domain:
     allowed_origins.add(settings.auth0_domain.rstrip("/"))
+
+# Allow extra origins to be provided via environment variable so deploy targets
+# (Vercel, Netlify, etc.) can be whitelisted without code changes. Use a
+# comma-separated list of origins, e.g.:
+#   COGNITOFORGE_ALLOWED_ORIGINS=https://cognitoforge-ai.vercel.app,https://other
+extra = os.environ.get("COGNITOFORGE_ALLOWED_ORIGINS")
+if extra:
+    for origin in (o.strip() for o in extra.split(",")):
+        if origin:
+            allowed_origins.add(origin)
 
 app.add_middleware(
     CORSMiddleware,
