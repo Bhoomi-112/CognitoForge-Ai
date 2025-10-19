@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.settings import get_settings
-from backend.app.routers import ai, operations
+from backend.app.routers import operations, ai
 
 settings = get_settings()
 
@@ -17,7 +17,14 @@ app = FastAPI(
 )
 
 # Basic CORS support so the hackathon frontend can call these endpoints without hassle.
-allowed_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
+allowed_origins = {
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+}
 if settings.auth0_domain:
     allowed_origins.add(settings.auth0_domain.rstrip("/"))
 
@@ -29,8 +36,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(ai.router)
 app.include_router(operations.router)
+app.include_router(ai.router)
 
 
 @app.get("/health")

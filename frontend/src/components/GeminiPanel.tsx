@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -283,7 +283,7 @@ export function GeminiPanel() {
         transition={{ delay: 0.5 }}
         className="text-center text-xs text-muted-foreground pt-4"
       >
-        <p>Powered by Google Gemini 2.5 Flash ΓÇó Real-time AI security analysis</p>
+        <p>Powered by Google Gemini 2.5 Flash • Real-time AI security analysis</p>
       </motion.div>
     </div>
   );

@@ -1,17 +1,15 @@
 'use client';
 
 import { useAuth0 } from '@auth0/auth0-react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LogIn, LogOut, Loader2 } from 'lucide-react';
 
 export function LoginButton() {
-  const router = useRouter();
-  const { isLoading } = useAuth0();
+  const { loginWithRedirect, isLoading } = useAuth0();
 
   return (
     <Button
-      onClick={() => router.push('/login')}
+      onClick={() => loginWithRedirect()}
       disabled={isLoading}
       variant="default"
       className="gap-2"

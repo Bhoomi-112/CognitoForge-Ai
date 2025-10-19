@@ -2,29 +2,7 @@
 // API service for backend communication
 
 // Get backend URL from environment variable with fallback
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
-
-/**
- * Token getter function for Auth0 integration
- * This allows the Auth0 provider to inject the access token into API requests
- */
-let tokenGetter: (() => Promise<string>) | null = null;
-
-export function setTokenGetter(getter: () => Promise<string>): void {
-  tokenGetter = getter;
-}
-
-export async function getAuthToken(): Promise<string | null> {
-  if (tokenGetter) {
-    try {
-      return await tokenGetter();
-    } catch (error) {
-      console.error('Failed to get auth token:', error);
-      return null;
-    }
-  }
-  return null;
-}
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 /**
  * Base API configuration
@@ -53,6 +31,19 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: ApiError;
+}
+
+/**
+ * Get Auth0 access token (to be called from components with useAuth0)
+ * This is a helper that components can use to get tokens
+ */
+export let getAccessToken: (() => Promise<string>) | null = null;
+
+/**
+ * Set the token getter function (called by Auth0Provider)
+ */
+export function setTokenGetter(getter: () => Promise<string>) {
+  getAccessToken = getter;
 }
 
 /**
@@ -105,25 +96,36 @@ export interface ReportResponse {
 }
 
 /**
- * Generic API request wrapper with error handling
+ * Generic API request wrapper with error handling and Auth0 token support
  */
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  includeAuth: boolean = false
 ): Promise<ApiResponse<T>> {
   const url = `${BASE_URL}${endpoint}`;
   
-  // Get auth token if available
-  const token = await getAuthToken();
-  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const headers: Record<string, string> = {
+    ...(apiConfig.headers as Record<string, string>),
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add Auth0 token if available and requested
+  if (includeAuth && getAccessToken) {
+    try {
+      const token = await getAccessToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get access token:', error);
+      // Continue without token - some endpoints may not require auth
+    }
+  }
   
   const config: RequestInit = {
     ...options,
-    headers: {
-      ...apiConfig.headers,
-      ...authHeaders,
-      ...(options.headers as Record<string, string>),
-    },
+    headers,
   };
 
   try {
@@ -190,7 +192,7 @@ export async function uploadRepository(repoId: string, repoUrl: string): Promise
       repo_id: repoId,
       repo_url: repoUrl,
     }),
-  });
+  }, false); // No auth for now
 }
 
 /**
@@ -203,7 +205,7 @@ export async function simulateAttack(repoId: string): Promise<ApiResponse<Simula
     body: JSON.stringify({
       repo_id: repoId,
     }),
-  });
+  }, false); // No auth for now
 }
 
 /**
@@ -213,7 +215,7 @@ export async function simulateAttack(repoId: string): Promise<ApiResponse<Simula
 export async function fetchLatestReport(repoId: string): Promise<ApiResponse<ReportResponse>> {
   return apiRequest(`/reports/${repoId}/latest`, {
     method: 'GET',
-  });
+  }, false); // No auth for now
 }
 
 /**

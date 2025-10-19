@@ -64,18 +64,18 @@ class GeminiErrorResponse(BaseModel):
     summary="Query Gemini AI",
     description="""
     Send a prompt to Google's Gemini AI and receive a response.
-
+    
     This endpoint uses the Gemini REST API to generate AI-powered responses
     for security analysis, vulnerability explanations, attack vector descriptions,
     and other AI-assisted tasks.
-
+    
     **Example Request:**
     ```json
     {
         "prompt": "Explain what a cross-site scripting (XSS) attack is"
     }
     ```
-
+    
     **Example Response:**
     ```json
     {
@@ -88,11 +88,11 @@ class GeminiErrorResponse(BaseModel):
         }
     }
     ```
-
+    
     **Requirements:**
     - `GEMINI_API_KEY` must be configured in environment variables
     - Prompt must be between 1 and 10,000 characters
-
+    
     **Rate Limits:**
     - Gemini API rate limits apply
     - 30-second timeout per request
@@ -101,20 +101,20 @@ class GeminiErrorResponse(BaseModel):
 async def query_gemini(request: GeminiRequest) -> GeminiSuccessResponse:
     """
     Query Gemini AI with a custom prompt.
-
+    
     This endpoint provides direct access to Google's Gemini AI for
     generating responses to security-related queries, vulnerability
     explanations, and other AI-assisted tasks.
-
+    
     Args:
         request: The Gemini request containing the prompt
-
+        
     Returns:
         GeminiSuccessResponse: Success response with AI-generated text
-
+        
     Raises:
         HTTPException: 500 error if Gemini API fails or configuration is missing
-
+        
     Example:
         >>> response = await query_gemini(GeminiRequest(prompt="Explain SQL injection"))
         >>> print(response.response)

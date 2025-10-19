@@ -1,12 +1,15 @@
 'use client';
 
 import { useAuth0 } from '@auth0/auth0-react';
-import { motion } from 'framer-motion';
-import { Shield, GitBranch, Clock, TrendingUp, AlertTriangle, CheckCircle, Play, FileText } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Shield, GitBranch, Clock, TrendingUp, AlertTriangle, CheckCircle, Play, FileText, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { GeminiPanel } from './GeminiPanel';
 
 export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => void }) {
   const { user } = useAuth0();
+  const [showAIPanel, setShowAIPanel] = useState(false);
 
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
@@ -114,10 +117,10 @@ export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => v
 
       {/* Quick Actions */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+        variants={staggerChildren}
+        initial="initial"
+        animate="animate"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
       >
         <div className="glass p-6 rounded-lg border border-border/40 hover:border-primary/50 transition-colors cursor-pointer group" onClick={onStartAnalysis}>
           <div className="flex items-start gap-4">
@@ -169,6 +172,33 @@ export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => v
             </div>
           </div>
         </div>
+
+        {/* AI Security Analyst Card - NEW! */}
+        <motion.div 
+          variants={fadeIn}
+          className="glass p-6 rounded-lg border border-purple-500/40 hover:border-purple-500/70 transition-all duration-300 cursor-pointer group hover:shadow-lg hover:shadow-purple-500/20"
+          onClick={() => setShowAIPanel(true)}
+        >
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-purple-500/10 rounded-lg group-hover:bg-purple-500/20 transition-colors">
+              <Sparkles className="h-6 w-6 text-purple-400 group-hover:animate-pulse" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1 flex items-center gap-2">
+                AI Analyst
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  NEW
+                </span>
+              </h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Get AI-powered security insights
+              </p>
+              <Button size="sm" variant="purple" className="w-full">
+                Ask Gemini
+              </Button>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
 
       {/* Recent Activity */}
@@ -226,6 +256,52 @@ export function WelcomeDashboard({ onStartAnalysis }: { onStartAnalysis: () => v
           </div>
         </div>
       </motion.div>
+
+      {/* AI Panel Modal */}
+      <AnimatePresence>
+        {showAIPanel && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAIPanel(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
+            />
+            
+            {/* Panel */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-4 md:inset-8 lg:inset-16 bg-black border border-purple-500/30 rounded-2xl z-50 overflow-hidden flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/20 bg-gradient-to-r from-purple-600/10 to-violet-600/10">
+                <h2 className="text-xl font-bold gradient-text flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-purple-400" />
+                  AI Security Analyst
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAIPanel(false)}
+                  className="text-purple-300 hover:text-purple-100"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <GeminiPanel />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -9,6 +9,8 @@ import re
 import textwrap
 from typing import Dict, List, Optional
 
+import httpx
+
 from backend.app.core.settings import get_settings
 from backend.app.models.schemas import AttackPlan, AttackStep, SimulationReport, SimulationRun
 from backend.app.services import repo_fetcher
@@ -434,75 +436,176 @@ def generate_ai_insight(run: SimulationRun, report: SimulationReport) -> Optiona
         return _FALLBACK_MESSAGE
 
 
-def generate_gemini_response(prompt: str) -> Dict[str, object]:
+# ==============================================================================
+# REST API Interface
+# ==============================================================================
+
+
+def generate_gemini_response(prompt: str) -> dict:
     """
-    Generate a response from Gemini AI for the /api/gemini endpoint.
+    Generate a response from Gemini using the REST API.
+    
+    This function provides direct access to the Gemini API via HTTP requests,
+    as an alternative to the google-generativeai SDK used elsewhere.
     
     Args:
-        prompt: The user's prompt text
+        prompt: The text prompt to send to Gemini
         
     Returns:
-        Dict containing either:
-        - Success: {"text": str, "model": str, "candidates": List}
-        - Error: {"error": str, "details": str, "exception": str}
+        dict: Response containing 'text' key with the model's output,
+              or 'error' key if the request failed
+              
+    Example:
+        >>> result = generate_gemini_response("Explain what a SQL injection is")
+        >>> print(result['text'])
+        
+    Raises:
+        ValueError: If GEMINI_API_KEY is not configured
+        httpx.TimeoutException: If the request times out
+        httpx.HTTPError: If the HTTP request fails
     """
     settings = get_settings()
     
-    # Check if Gemini is configured
+    # Validate configuration
     if not settings.gemini_api_key:
-        return {
-            "error": "Gemini API key not configured",
-            "details": "Please set COGNITOFORGE_GEMINI_API_KEY environment variable",
+        error_msg = "GEMINI_API_KEY environment variable is not configured"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    # Use configured model or default to gemini-pro
+    model_name = settings.gemini_model or "gemini-pro"
+    
+    # Use v1beta for broader model support
+    api_url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        f"?key={settings.gemini_api_key}"
+    )
+    
+    # Build request payload
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+    
+    logger.info(
+        "Sending Gemini REST API request",
+        extra={
+            "model": model_name,
+            "prompt_length": len(prompt),
+            "api_method": "REST"
         }
+    )
     
     try:
-        # Import google.generativeai
-        try:
-            genai = importlib.import_module("google.generativeai")
-        except ImportError as exc:
+        # Make HTTP request with timeout
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                api_url,
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            # Check for HTTP errors
+            response.raise_for_status()
+            
+            # Parse response
+            response_data = response.json()
+            
+            # Extract text from response
+            if "candidates" in response_data and len(response_data["candidates"]) > 0:
+                candidate = response_data["candidates"][0]
+                if "content" in candidate and "parts" in candidate["content"]:
+                    parts = candidate["content"]["parts"]
+                    if len(parts) > 0 and "text" in parts[0]:
+                        text_output = parts[0]["text"]
+                        
+                        logger.info(
+                            "Gemini REST API response received",
+                            extra={
+                                "model": model_name,
+                                "response_length": len(text_output),
+                                "candidates": len(response_data["candidates"])
+                            }
+                        )
+                        
+                        return {
+                            "text": text_output,
+                            "model": model_name,
+                            "candidates": response_data.get("candidates", [])
+                        }
+            
+            # Response doesn't contain expected structure
+            error_msg = "Gemini response did not contain expected text output"
+            logger.warning(
+                error_msg,
+                extra={"response_structure": list(response_data.keys())}
+            )
             return {
-                "error": "Gemini package not installed",
-                "details": "Please install google-generativeai package",
-                "exception": str(exc),
+                "error": error_msg,
+                "raw_response": response_data
             }
-        
-        # Configure and call Gemini
-        genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel(settings.gemini_model)
-        
-        logger.info(
-            "Generating Gemini response for /api/gemini",
-            extra={
-                "model": settings.gemini_model,
-                "prompt_length": len(prompt),
-            },
+            
+    except httpx.TimeoutException as exc:
+        error_msg = "Gemini API request timed out after 30 seconds"
+        logger.error(
+            error_msg,
+            extra={"model": model_name, "error": str(exc)}
         )
-        
-        response = model.generate_content(prompt)
-        text = _extract_text_from_response(response)
-        
-        if not text:
-            return {
-                "error": "Empty response from Gemini",
-                "details": "Gemini returned no text content",
-            }
-        
         return {
-            "text": text,
-            "model": settings.gemini_model,
-            "candidates": getattr(response, "candidates", []),
+            "error": error_msg,
+            "exception": str(exc)
+        }
+        
+    except httpx.HTTPStatusError as exc:
+        error_msg = f"Gemini API returned HTTP {exc.response.status_code}"
+        logger.error(
+            error_msg,
+            extra={
+                "model": model_name,
+                "status_code": exc.response.status_code,
+                "response_text": exc.response.text[:500]  # Log first 500 chars
+            }
+        )
+        return {
+            "error": error_msg,
+            "status_code": exc.response.status_code,
+            "details": exc.response.text
+        }
+        
+    except httpx.HTTPError as exc:
+        error_msg = f"HTTP error occurred: {type(exc).__name__}"
+        logger.exception(
+            "Gemini API HTTP request failed",
+            extra={"model": model_name, "error": str(exc)}
+        )
+        return {
+            "error": error_msg,
+            "exception": str(exc)
+        }
+        
+    except json.JSONDecodeError as exc:
+        error_msg = "Failed to parse Gemini API response as JSON"
+        logger.exception(
+            error_msg,
+            extra={"model": model_name, "error": str(exc)}
+        )
+        return {
+            "error": error_msg,
+            "exception": str(exc)
         }
         
     except Exception as exc:  # noqa: BLE001
+        error_msg = f"Unexpected error calling Gemini API: {type(exc).__name__}"
         logger.exception(
-            "Gemini API request failed",
-            extra={
-                "error": str(exc),
-                "error_type": type(exc).__name__,
-            },
+            "Unexpected Gemini API error",
+            extra={"model": model_name, "error": str(exc)}
         )
         return {
-            "error": "Gemini API request failed",
-            "details": f"{type(exc).__name__}: {str(exc)}",
-            "exception": str(exc),
+            "error": error_msg,
+            "exception": str(exc)
         }

@@ -31,7 +31,7 @@ from backend.app.models.schemas import (
     VulnerabilityReport,
 )
 from backend.app.services import repo_fetcher
-from backend.app.services.gemini_service import generate_attack_plan, generate_ai_insight
+from backend.app.services.gemini_service import generate_attack_plan, generate_ai_insight, generate_gemini_response
 from backend.app.services.sandbox_service import run_sandbox_simulation
 from backend.app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
 from backend.app.utils.storage import (
@@ -359,3 +359,82 @@ async def get_simulation_report(repo_id: str, run_id: str) -> dict[str, object]:
             extra={"repo_id": repo_id, "run_id": run_id},
         )
         raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
+
+
+# ==============================================================================
+# Gemini REST API Test Endpoint
+# ==============================================================================
+
+
+class GeminiQueryRequest(BaseModel):
+    """Request payload for Gemini REST API query."""
+    prompt: str
+
+
+@router.post("/gemini/query", tags=["gemini"])
+async def query_gemini_rest_api(request: GeminiQueryRequest):
+    """
+    Test endpoint for the new Gemini REST API function.
+    
+    This endpoint demonstrates usage of the generate_gemini_response() function
+    that calls Gemini's REST API directly (not the SDK).
+    
+    Example request:
+        POST /gemini/query
+        {
+            "prompt": "Explain what a SQL injection attack is"
+        }
+    
+    Example response:
+        {
+            "text": "SQL injection is a code injection...",
+            "model": "gemini-pro",
+            "prompt_length": 40,
+            "response_length": 150
+        }
+    """
+    logger.info(
+        "Gemini REST API query requested",
+        extra={"prompt_length": len(request.prompt)}
+    )
+    
+    try:
+        # Call the new REST API function
+        result = await run_in_threadpool(generate_gemini_response, request.prompt)
+        
+        if "error" in result:
+            logger.error(
+                "Gemini REST API returned error",
+                extra={"error": result["error"]}
+            )
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": result["error"],
+                    "details": result.get("details", "No additional details")
+                }
+            )
+        
+        # Success response
+        return {
+            "text": result["text"],
+            "model": result.get("model", "unknown"),
+            "prompt_length": len(request.prompt),
+            "response_length": len(result["text"])
+        }
+        
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        # Configuration error (missing API key)
+        logger.error("Gemini configuration error", extra={"error": str(exc)})
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(exc)}
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error in Gemini query endpoint")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Unexpected server error"}
+        ) from exc

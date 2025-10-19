@@ -1,6 +1,6 @@
 /**
  * Gemini AI Service
- *
+ * 
  * This service provides functions to interact with the Gemini AI backend API.
  * Used for generating AI-powered insights, explanations, and security analysis.
  */
@@ -26,13 +26,13 @@ interface GeminiResponse {
 
 /**
  * Generate an AI insight using Gemini
- *
+ * 
  * Sends a prompt to the backend Gemini API and returns the AI-generated response.
- *
+ * 
  * @param prompt - The text prompt to send to Gemini AI
  * @returns Promise resolving to the AI-generated response text
  * @throws Error if the request fails or returns an error
- *
+ * 
  * @example
  * ```typescript
  * try {
@@ -87,7 +87,7 @@ export async function generateInsight(prompt: string): Promise<string> {
     if (!response.ok || !data.success) {
       const errorMessage = data.error || `HTTP ${response.status}: ${response.statusText}`;
       const errorDetails = data.details || 'No additional details';
-
+      
       console.error('[GeminiService] API error:', {
         error: errorMessage,
         details: errorDetails,
@@ -129,15 +129,15 @@ export async function generateInsight(prompt: string): Promise<string> {
 
 /**
  * Generate an insight with a timeout
- *
+ * 
  * Same as generateInsight but with a configurable timeout.
  * Useful for preventing long-running requests.
- *
+ * 
  * @param prompt - The text prompt to send to Gemini AI
  * @param timeoutMs - Timeout in milliseconds (default: 30000ms / 30s)
  * @returns Promise resolving to the AI-generated response text
  * @throws Error if the request fails, returns an error, or times out
- *
+ * 
  * @example
  * ```typescript
  * try {
@@ -169,11 +169,11 @@ export async function generateInsightWithTimeout(
 
 /**
  * Check if the Gemini service is available
- *
+ * 
  * Sends a simple test request to verify the backend API is reachable.
- *
+ * 
  * @returns Promise resolving to true if service is available, false otherwise
- *
+ * 
  * @example
  * ```typescript
  * const isAvailable = await checkGeminiAvailability();
@@ -191,7 +191,7 @@ export async function checkGeminiAvailability(): Promise<boolean> {
     });
 
     const isAvailable = response.ok;
-
+    
     console.log('[GeminiService] Availability check:', {
       available: isAvailable,
       status: response.status,
@@ -206,13 +206,13 @@ export async function checkGeminiAvailability(): Promise<boolean> {
 
 /**
  * Batch generate insights for multiple prompts
- *
+ * 
  * Generates insights for multiple prompts sequentially.
  * Note: Requests are made one at a time to avoid rate limiting.
- *
+ * 
  * @param prompts - Array of prompts to process
  * @returns Promise resolving to array of responses (or errors)
- *
+ * 
  * @example
  * ```typescript
  * const prompts = ["Explain SQL injection", "What is XSS?"];

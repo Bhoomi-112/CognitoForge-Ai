@@ -42,11 +42,8 @@ interface Vulnerability {
 }
 
 function DemoHeader() {
-<<<<<<< HEAD:frontend/src/app/demo/page.tsx
-=======
   const { user } = useAuth0();
   
->>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
   return (
     <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
@@ -58,11 +55,8 @@ function DemoHeader() {
             <div className="h-6 w-px bg-border/40" />
             <span className="text-muted-foreground">Security Analysis Demo</span>
           </div>
-<<<<<<< HEAD:frontend/src/app/demo/page.tsx
-=======
           
           {user && <UserProfile />}
->>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
         </div>
       </div>
     </header>
@@ -636,59 +630,8 @@ export default function DemoPage() {
     setAnalysisSteps([]);
     setProgress(0);
     setIsLoading(false);
-<<<<<<< HEAD:frontend/src/app/demo/page.tsx
     setCurrentRepoId(null);
     setAnalysisResult(null);
-    showInfo('New Analysis', 'Ready to analyze another repository');
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      <DemoHeader />
-      <ToastContainer toasts={toasts} onClose={closeToast} />
-      
-      <main className="container mx-auto px-4 py-8">
-        <AnimatePresence mode="wait">
-          {currentPage === 'input' && (
-            <motion.div
-              key="input"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <RepoInputForm onSubmit={startAnalysis} isLoading={isLoading} />
-            </motion.div>
-          )}
-          
-          {currentPage === 'analysis' && (
-            <motion.div
-              key="analysis"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <AnalysisProgress steps={analysisSteps} progress={progress} />
-            </motion.div>
-          )}
-          
-          {currentPage === 'report' && (
-            <motion.div
-              key="report"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <SecurityReport 
-                onNewAnalysis={startNewAnalysis} 
-                repoId={currentRepoId}
-                analysisResult={analysisResult}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-    </div>
-=======
     showSuccess('Analysis Reset', 'Ready to start a new security analysis');
   };
 
@@ -744,13 +687,16 @@ export default function DemoPage() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <SecurityReport onNewAnalysis={startNewAnalysis} />
+                <SecurityReport 
+                  onNewAnalysis={startNewAnalysis} 
+                  repoId={currentRepoId}
+                  analysisResult={analysisResult}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
     </ProtectedRoute>
->>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
   );
 }
