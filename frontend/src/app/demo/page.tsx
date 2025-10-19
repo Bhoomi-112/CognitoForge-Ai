@@ -7,6 +7,9 @@ import { ToastContainer, useToast } from '@/components/ui/toast';
 import { LatestReport } from '@/components/reports';
 import { uploadRepository, simulateAttack, fetchLatestReport, runCompleteAnalysis, healthCheck } from '@/lib/api';
 import { validateRepoUrl, validateAnalysisType, combineValidationResults } from '@/lib/validation';
+import { ProtectedRoute, UserProfile } from '@/components/auth';
+import { WelcomeDashboard } from '@/components/WelcomeDashboard';
+import { useAuth0 } from '@auth0/auth0-react';
 import {
   Shield,
   GitBranch,
@@ -39,6 +42,11 @@ interface Vulnerability {
 }
 
 function DemoHeader() {
+<<<<<<< HEAD:frontend/src/app/demo/page.tsx
+=======
+  const { user } = useAuth0();
+  
+>>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
   return (
     <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
@@ -50,6 +58,11 @@ function DemoHeader() {
             <div className="h-6 w-px bg-border/40" />
             <span className="text-muted-foreground">Security Analysis Demo</span>
           </div>
+<<<<<<< HEAD:frontend/src/app/demo/page.tsx
+=======
+          
+          {user && <UserProfile />}
+>>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
         </div>
       </div>
     </header>
@@ -461,13 +474,13 @@ function SecurityReport({
   );
 }
 
-type DemoPage = 'input' | 'analysis' | 'report';
+type DemoPage = 'welcome' | 'input' | 'analysis' | 'report';
 
 // Global flag to prevent multiple health check toasts
 let healthCheckToastShown = false;
 
 export default function DemoPage() {
-  const [currentPage, setCurrentPage] = useState<DemoPage>('input');
+  const [currentPage, setCurrentPage] = useState<DemoPage>('welcome');
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStep[]>([]);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -619,10 +632,11 @@ export default function DemoPage() {
   };
 
   const startNewAnalysis = () => {
-    setCurrentPage('input');
+    setCurrentPage('welcome');
     setAnalysisSteps([]);
     setProgress(0);
     setIsLoading(false);
+<<<<<<< HEAD:frontend/src/app/demo/page.tsx
     setCurrentRepoId(null);
     setAnalysisResult(null);
     showInfo('New Analysis', 'Ready to analyze another repository');
@@ -674,5 +688,69 @@ export default function DemoPage() {
         </AnimatePresence>
       </main>
     </div>
+=======
+    showSuccess('Analysis Reset', 'Ready to start a new security analysis');
+  };
+
+  const goToInputForm = () => {
+    setCurrentPage('input');
+  };
+
+  return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
+        <DemoHeader />
+        <ToastContainer toasts={toasts} onClose={closeToast} />
+        
+        <main className="container mx-auto px-4 py-8">
+          <AnimatePresence mode="wait">
+            {currentPage === 'welcome' && (
+              <motion.div
+                key="welcome"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <WelcomeDashboard onStartAnalysis={goToInputForm} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'input' && (
+              <motion.div
+                key="input"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <RepoInputForm onSubmit={startAnalysis} isLoading={isLoading} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'analysis' && (
+              <motion.div
+                key="analysis"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <AnalysisProgress steps={analysisSteps} progress={progress} />
+              </motion.div>
+            )}
+            
+            {currentPage === 'report' && (
+              <motion.div
+                key="report"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <SecurityReport onNewAnalysis={startNewAnalysis} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+      </div>
+    </ProtectedRoute>
+>>>>>>> origin/feature/auth0-integration:src/app/demo/page.tsx
   );
 }

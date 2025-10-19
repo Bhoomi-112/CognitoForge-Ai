@@ -1,15 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { AuthButton } from '@/components/auth/auth-components'
-import { useUser } from '@auth0/nextjs-auth0/client'
+import { AuthButton, UserProfile } from '@/components/auth'
+import { useAuth0 } from '@auth0/auth0-react'
 
 interface HeaderProps {
   variant?: 'default' | 'demo'
 }
 
 export function Header({ variant = 'default' }: HeaderProps) {
-  const { user } = useUser()
+  const { isAuthenticated } = useAuth0()
 
   return (
     <header className="fixed top-0 w-full z-50 glass border-b border-border/40">
@@ -41,16 +41,7 @@ export function Header({ variant = 'default' }: HeaderProps) {
               Demo
             </Link>
             
-            {user && (
-              <div className="flex items-center gap-3">
-                <img
-                  src={user.picture}
-                  alt={user.name || 'User'}
-                  className="h-8 w-8 rounded-full border border-border"
-                />
-                <span className="text-sm font-medium">{user.name}</span>
-              </div>
-            )}
+            {isAuthenticated && <UserProfile />}
             
             <AuthButton />
           </nav>

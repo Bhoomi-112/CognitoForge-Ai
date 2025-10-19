@@ -73,7 +73,7 @@ function HeroSection() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
             variants={fadeInUp}
           >
-            <Link href="/demo">
+            <Link href="/signup">
               <Button variant="purple" size="lg" className="text-lg px-8 hover-lift">
                 <Zap className="mr-2 h-5 w-5" />
                 Get Started Free
@@ -208,7 +208,7 @@ function CTAComponent() {
           </p>
           
           <div className="space-y-6">
-            <Link href="/demo">
+            <Link href="/signup">
               <Button variant="purple" size="lg" className="text-lg px-8 glow-purple-medium">
                 <Shield className="mr-2 h-5 w-5" />
                 Get Started Free
@@ -253,9 +253,11 @@ export default function HomePage() {
               <Link href="/demo" className="text-purple-300 hover:text-purple-200 transition-fast">
                 Demo
               </Link>
-              <Button variant="purple-outline" size="sm">
-                Get Started
-              </Button>
+              <Link href="/signup">
+                <Button variant="purple-outline" size="sm">
+                  Get Started
+                </Button>
+              </Link>
             </nav>
           </div>
         </div>
