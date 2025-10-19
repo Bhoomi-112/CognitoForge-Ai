@@ -5,6 +5,28 @@
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
 
 /**
+ * Token getter function for Auth0 integration
+ * This allows the Auth0 provider to inject the access token into API requests
+ */
+let tokenGetter: (() => Promise<string>) | null = null;
+
+export function setTokenGetter(getter: () => Promise<string>): void {
+  tokenGetter = getter;
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  if (tokenGetter) {
+    try {
+      return await tokenGetter();
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Base API configuration
  */
 export const apiConfig = {
@@ -91,11 +113,16 @@ async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${BASE_URL}${endpoint}`;
   
+  // Get auth token if available
+  const token = await getAuthToken();
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  
   const config: RequestInit = {
     ...options,
     headers: {
       ...apiConfig.headers,
-      ...options.headers,
+      ...authHeaders,
+      ...(options.headers as Record<string, string>),
     },
   };
 
