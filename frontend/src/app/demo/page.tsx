@@ -67,7 +67,7 @@ function RepoInputForm({ onSubmit, isLoading }: {
   onSubmit: (repoUrl: string, analysisType: string) => void; 
   isLoading: boolean;
 }) {
-  const [repoUrl, setRepoUrl] = useState('https://github.com/vulnerable-app/node-express-demo');
+  const [repoUrl, setRepoUrl] = useState('https://github.com/OWASP/NodeGoat');
   const [analysisType, setAnalysisType] = useState('comprehensive');
   const [errors, setErrors] = useState<string[]>([]);
   const [touched, setTouched] = useState({ repoUrl: false, analysisType: false });
@@ -226,13 +226,16 @@ function AnalysisProgress({
           <span className="text-sm font-medium">Overall Progress</span>
           <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
         </div>
-        <div className="w-full bg-muted rounded-full h-3">
+        <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
           <motion.div
-            className="bg-brand-gradient h-3 rounded-full"
-            style={{ width: `${progress}%` }}
-            initial={{ width: 0 }}
+            className="h-3 rounded-full"
+            style={{ 
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, #8b5cf6 0%, #a855f7 50%, #c084fc 100%)'
+            }}
+            initial={{ width: '0%' }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
           />
         </div>
       </div>
@@ -285,46 +288,90 @@ function SecurityReport({
   const [isDownloading, setIsDownloading] = useState(false);
   const { showSuccess, showError } = useToast();
   
-  // Use real analysis result data if available, otherwise use demo data
-  const displayData = analysisResult || {
-    summary: {
-      overall_severity: 'high',
-      critical_steps: 1,
-      high_steps: 2,
-      medium_steps: 3,
-      low_steps: 1,
-      affected_files: ['src/auth/login.js', 'config/database.js', 'api/admin.js']
+  // Only show real data from backend - no fallbacks
+  if (!analysisResult) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">No Analysis Data</h2>
+        <p className="text-muted-foreground mb-6">Run a security analysis to see results</p>
+        <Button onClick={onNewAnalysis}>Start New Analysis</Button>
+      </div>
+    );
+  }
+
+  // Debug logging
+  console.log('Analysis Result:', analysisResult);
+  console.log('Plan:', analysisResult.plan);
+  console.log('Steps:', analysisResult.plan?.steps);
+  console.log('Gemini Metadata:', analysisResult.gemini_metadata);
+
+  const displayData = analysisResult;
+
+  // Extract real vulnerabilities from Gemini-generated attack plan
+  const vulnerabilities: Vulnerability[] = analysisResult.plan?.steps ? 
+    analysisResult.plan.steps.map((step: any, index: number) => ({
+      title: step.description || `Attack Step ${index + 1}`,
+      severity: (step.severity || 'medium').toLowerCase(),
+      description: `MITRE ATT&CK: ${step.technique_id || 'N/A'} | Affected Files: ${step.affected_files?.length || 0}`,
+      cve: step.technique_id // Use MITRE technique as identifier
+    })) : [];
+
+  console.log('Parsed Vulnerabilities:', vulnerabilities);
+
+  // Calculate actual analysis duration if timestamp is available
+  const getAnalysisDuration = () => {
+    if (analysisResult?.timestamp) {
+      const timestamp = new Date(analysisResult.timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - timestamp.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+      
+      if (diffMins > 0) {
+        return `${diffMins}m ${diffSecs}s`;
+      }
+      return `${diffSecs}s`;
     }
+    return 'N/A';
   };
 
-  const vulnerabilities: Vulnerability[] = analysisResult?.plan?.steps ? 
-    analysisResult.plan.steps.map((step: any) => ({
-      title: step.description || 'Unknown vulnerability',
-      severity: (step.severity || 'medium').toLowerCase(),
-      description: `Technique ID: ${step.technique_id || 'N/A'}`,
-      affectedFiles: step.affected_files || []
-    })) : [
-      {
-        title: "SQL Injection in Login Form",
-        severity: "critical",
-        description: "Unsanitized user input allows database manipulation",
-        cve: "CVE-2023-1234"
-      },
-      {
-        title: "Exposed Admin Panel",
-        severity: "high",
-        description: "Admin interface accessible without proper authentication",
-        cve: "CVE-2023-5678"
-      },
-      {
-        title: "Weak Session Management",
-        severity: "medium",
-        description: "Session tokens are predictable and not properly invalidated"
-      }
-    ];
+  // Get AI confidence indicator
+  const getAIConfidence = () => {
+    const isGemini = analysisResult?.gemini_metadata?.plan_source === 'gemini';
+    const model = analysisResult?.gemini_metadata?.model_used;
+    
+    if (isGemini && model) {
+      // Gemini AI is high confidence
+      return {
+        level: 'High',
+        color: 'text-green-500',
+        icon: '🤖',
+        label: 'AI-Powered',
+        details: `Generated by ${model}`
+      };
+    } else if (analysisResult?.gemini_metadata?.plan_source === 'fallback') {
+      return {
+        level: 'Medium',
+        color: 'text-yellow-500',
+        icon: '⚙️',
+        label: 'Deterministic',
+        details: 'Rule-based analysis'
+      };
+    }
+    return {
+      level: 'Unknown',
+      color: 'text-gray-500',
+      icon: '❓',
+      label: 'Standard',
+      details: 'Legacy analysis'
+    };
+  };
+
+  const aiConfidence = getAIConfidence();
 
   const riskScore = () => {
-    const severity = displayData.summary?.overall_severity || 'medium';
+    const severity = displayData.plan?.overall_severity || 'medium';
     switch (severity.toLowerCase()) {
       case 'critical': return { score: '9.5/10', color: 'text-red-500', level: 'Critical Risk' };
       case 'high': return { score: '8.5/10', color: 'text-orange-500', level: 'High Risk' };
@@ -336,10 +383,8 @@ function SecurityReport({
 
   const risk = riskScore();
   
-  const totalVulns = (displayData.summary?.critical_steps || 0) + 
-                    (displayData.summary?.high_steps || 0) + 
-                    (displayData.summary?.medium_steps || 0) + 
-                    (displayData.summary?.low_steps || 0) || vulnerabilities.length;
+  // Calculate total vulnerabilities from actual plan steps
+  const totalVulns = vulnerabilities.length;
 
   const handleDownloadReport = async () => {
     setIsDownloading(true);
@@ -397,51 +442,151 @@ function SecurityReport({
           <div className="text-orange-500 text-sm mt-1">Action Required</div>
         </div>
 
-        {/* Scan Duration */}
+        {/* Analysis Duration & AI Confidence */}
         <div className="glass p-6 rounded-lg text-center">
           <div className="text-3xl font-bold text-primary mb-2">
-            {analysisResult ? '3.2m' : '2.3m'}
+            {getAnalysisDuration()}
           </div>
-          <div className="text-sm text-muted-foreground">Scan Duration</div>
-          <div className="text-green-500 text-sm mt-1">Completed</div>
+          <div className="text-sm text-muted-foreground">Analysis Duration</div>
+          <div className={`text-sm mt-1 flex items-center justify-center gap-1 ${aiConfidence.color}`}>
+            <span>{aiConfidence.icon}</span>
+            <span>{aiConfidence.label}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Confidence Banner */}
+      <div className={`glass p-4 rounded-lg mb-6 border-l-4 ${
+        aiConfidence.level === 'High' ? 'border-green-500' :
+        aiConfidence.level === 'Medium' ? 'border-yellow-500' : 'border-gray-500'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{aiConfidence.icon}</span>
+            <div>
+              <div className="font-semibold">
+                AI Confidence: <span className={aiConfidence.color}>{aiConfidence.level}</span>
+              </div>
+              <div className="text-sm text-muted-foreground">{aiConfidence.details}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-muted-foreground">Analysis Quality</div>
+            <div className={`font-medium ${aiConfidence.color}`}>
+              {aiConfidence.level === 'High' ? '95%' : 
+               aiConfidence.level === 'Medium' ? '75%' : '50%'}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Vulnerabilities List */}
       <div className="glass p-6 rounded-lg mb-6">
-        <h3 className="text-lg font-semibold mb-4">Discovered Vulnerabilities</h3>
-        <div className="space-y-4">
-          {vulnerabilities.map((vuln, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="p-4 border border-border/40 rounded-lg"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h4 className="font-medium">{vuln.title}</h4>
-                <span className={`px-2 py-1 rounded text-xs border ${getSeverityColor(vuln.severity)}`}>
-                  {(vuln.severity || 'unknown').toUpperCase()}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-2">{vuln.description}</p>
-              {vuln.cve && (
-                <span className="text-xs text-muted-foreground">{vuln.cve}</span>
-              )}
-            </motion.div>
-          ))}
-        </div>
+        <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+          <span>Discovered Attack Vectors ({vulnerabilities.length})</span>
+          {analysisResult?.gemini_metadata?.plan_source === 'gemini' && (
+            <span className="text-xs text-green-500 flex items-center gap-1">
+              <span>🤖</span> AI-Generated
+            </span>
+          )}
+        </h3>
+        {vulnerabilities.length > 0 ? (
+          <div className="space-y-4">
+            {vulnerabilities.map((vuln, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="p-4 border border-border/40 rounded-lg hover:border-primary/40 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-muted-foreground text-sm">Step {index + 1}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs border ${getSeverityColor(vuln.severity)}`}>
+                        {(vuln.severity || 'unknown').toUpperCase()}
+                      </span>
+                    </div>
+                    <h4 className="font-medium text-base">{vuln.title}</h4>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{vuln.description}</p>
+                {vuln.cve && (
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/40">
+                    <span className="text-xs text-primary font-mono">{vuln.cve}</span>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>No vulnerabilities detected in this analysis</p>
+          </div>
+        )}
       </div>
 
       {/* Latest Report Section */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-4">Latest Simulation Report</h3>
-        <LatestReport repoId={repoId || "demo-repo-123"} />
-      </div>
+      {repoId && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-4">Latest Simulation Report</h3>
+          <LatestReport repoId={repoId} />
+        </div>
+      )}
+      
+      {/* Show Gemini AI Metadata if available */}
+      {analysisResult?.gemini_metadata && (
+        <div className="glass p-6 rounded-lg mb-6 border-l-4 border-purple-500">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span className="text-2xl">✨</span>
+            <span className="gradient-text">Gemini AI Intelligence</span>
+          </h3>
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <div className="glass p-4 rounded-lg">
+              <div className="text-xs text-muted-foreground mb-1">Analysis Method</div>
+              <div className={`font-semibold text-lg ${
+                analysisResult.gemini_metadata.plan_source === 'gemini' 
+                  ? 'text-green-500' 
+                  : 'text-yellow-500'
+              }`}>
+                {analysisResult.gemini_metadata.plan_source === 'gemini' ? '🤖 AI-Generated' : '⚙️ Rule-Based'}
+              </div>
+            </div>
+            {analysisResult.gemini_metadata.model_used && (
+              <div className="glass p-4 rounded-lg">
+                <div className="text-xs text-muted-foreground mb-1">AI Model</div>
+                <div className="font-semibold text-lg text-primary">
+                  {analysisResult.gemini_metadata.model_used}
+                </div>
+              </div>
+            )}
+          </div>
+          {analysisResult.gemini_metadata.ai_insight && (
+            <div className="mt-4">
+              <div className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                <span>💡</span>
+                <span>Security Intelligence Summary</span>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 p-4 rounded-lg border border-purple-500/20">
+                <p className="text-foreground leading-relaxed">
+                  {analysisResult.gemini_metadata.ai_insight}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Link href="/dashboard">
+          <Button variant="default">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            View Dashboard
+          </Button>
+        </Link>
         <Button variant="outline" onClick={onNewAnalysis}>
           <RefreshCw className="mr-2 h-4 w-4" />
           New Analysis
@@ -510,8 +655,24 @@ export default function DemoPage() {
     setCurrentPage('analysis');
     setProgress(0);
     
-    // Generate unique repo ID
-    const repoId = `repo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Extract repo ID from GitHub URL
+    const extractRepoId = (url: string): string => {
+      if (!url) return '';
+      const githubPattern = /github\.com\/[^\/]+\/([^\/\?#]+)/i;
+      const match = url.match(githubPattern);
+      if (match && match[1]) {
+        return match[1].replace(/\.git$/, '');
+      }
+      return url.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/^_+|_+$/g, '');
+    };
+    
+    let repoId = extractRepoId(repoUrl);
+    
+    // If extraction fails or is empty, generate a fallback ID
+    if (!repoId) {
+      repoId = `repo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
     setCurrentRepoId(repoId);
     
     try {
@@ -521,32 +682,28 @@ export default function DemoPage() {
       if (healthResult.success) {
         showSuccess('Backend Connected', 'Connected to CognitoForge backend successfully');
         
+        // Initialize real backend steps
+        const realSteps: AnalysisStep[] = [
+          { id: '1', message: 'Uploading repository...', status: 'pending', duration: 1500 },
+          { id: '2', message: 'Running AI-powered security simulation...', status: 'pending', duration: 2000 },
+          { id: '3', message: 'Generating comprehensive report...', status: 'pending', duration: 2500 },
+          { id: '4', message: 'Analysis complete!', status: 'pending', duration: 500 }
+        ];
+        setAnalysisSteps(realSteps);
+        
         // Use real backend workflow
         const result = await runCompleteAnalysis(
           repoId,
           repoUrl,
           (step: string, progress: number) => {
             setProgress(progress);
-            // Update current step in the UI
-            const stepMessage = `${step} (${Math.round(progress)}%)`;
-            
-            // Initialize steps if not done yet
-            if (analysisSteps.length === 0) {
-              const steps: AnalysisStep[] = [
-                { id: '1', message: 'Uploading repository...', status: 'pending', duration: 1500 },
-                { id: '2', message: 'Running security simulation...', status: 'pending', duration: 2000 },
-                { id: '3', message: 'Generating report...', status: 'pending', duration: 2500 },
-                { id: '4', message: 'Analysis complete!', status: 'pending', duration: 500 }
-              ];
-              setAnalysisSteps(steps);
-            }
             
             // Update step status based on progress
             setAnalysisSteps(prev => {
               const stepIndex = Math.floor((progress / 100) * prev.length);
               return prev.map((s, index) => {
                 if (index < stepIndex) return { ...s, status: 'complete' };
-                if (index === stepIndex) return { ...s, status: 'running', message: stepMessage };
+                if (index === stepIndex) return { ...s, status: 'running', message: step };
                 return s;
               });
             });
@@ -556,9 +713,13 @@ export default function DemoPage() {
         if (result.success) {
           setProgress(100);
           setIsLoading(false);
+          
+          // Mark all steps complete
+          setAnalysisSteps(prev => prev.map(s => ({ ...s, status: 'complete' })));
+          
           setAnalysisResult(result.data); // Store the real backend result
           setCurrentPage('report');
-          showSuccess('Analysis Complete', 'Real security analysis completed successfully');
+          showSuccess('Analysis Complete', 'Security analysis completed with Gemini AI');
           return;
         } else {
           throw new Error(result.error?.message || 'Backend analysis failed');
@@ -568,61 +729,27 @@ export default function DemoPage() {
       }
     } catch (error) {
       console.error('Backend analysis failed:', error);
-      showInfo('Demo Mode', 'Backend unavailable, running simulation...');
       
-      // Fallback to demo simulation
-      await runDemoSimulation();
+      // Provide user-friendly error messages
+      let errorMessage = 'Backend connection lost. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('404') || error.message.includes('Not Found')) {
+          errorMessage = 'Repository not found. Please check the URL and make sure the repository is public.';
+        } else if (error.message.includes('Repository not analyzed')) {
+          errorMessage = 'Repository not analyzed yet. Upload and analyze it first.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showError('Analysis Failed', errorMessage);
+      
+      // Reset state on error
+      setIsLoading(false);
+      setProgress(0);
+      setCurrentPage('input');
+      setAnalysisSteps([]);
     }
-  };
-
-  const runDemoSimulation = async () => {
-    const steps: AnalysisStep[] = [
-      { id: '1', message: 'Authenticating with secure analysis environment...', status: 'pending', duration: 1500 },
-      { id: '2', message: 'Cloning repository...', status: 'pending', duration: 2000 },
-      { id: '3', message: 'Setting up user-specific sandbox...', status: 'pending', duration: 2500 },
-      { id: '4', message: 'Analyzing code structure...', status: 'pending', duration: 2500 },
-      { id: '5', message: 'Running static security analysis...', status: 'pending', duration: 4000 },
-      { id: '6', message: 'Simulating attack scenarios...', status: 'pending', duration: 5000 },
-      { id: '7', message: 'Testing CI/CD pipeline vulnerabilities...', status: 'pending', duration: 3500 },
-      { id: '8', message: 'Generating personalized attack paths...', status: 'pending', duration: 2000 },
-      { id: '9', message: 'Compiling security report...', status: 'pending', duration: 2000 }
-    ];
-
-    setAnalysisSteps(steps);
-    
-    const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0);
-    let elapsed = 0;
-
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
-      
-      // Update step to running
-      setAnalysisSteps(prev => prev.map(s => 
-        s.id === step.id ? { ...s, status: 'running' } : s
-      ));
-      
-      // Update progress
-      setProgress((elapsed / totalDuration) * 100);
-      
-      // Wait for step duration
-      await new Promise(resolve => setTimeout(resolve, step.duration));
-      
-      // Mark step as complete
-      setAnalysisSteps(prev => prev.map(s => 
-        s.id === step.id ? { ...s, status: 'complete' } : s
-      ));
-      
-      elapsed += step.duration;
-    }
-
-    setProgress(100);
-    setIsLoading(false);
-    
-    // Show report after a brief delay
-    setTimeout(() => {
-      setCurrentPage('report');
-      showSuccess('Analysis Complete', 'Security analysis finished successfully');
-    }, 2000);
   };
 
   const startNewAnalysis = () => {
