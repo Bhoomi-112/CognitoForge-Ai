@@ -1,0 +1,63 @@
+{
+  "repo_id": "aptos-meme-nft-minter",
+  "run_id": "aptos-meme-nft-minter_20251019T120009743544",
+  "timestamp": "2025-10-19T12:00:09.743544",
+  "plan": {
+    "repo_id": "aptos-meme-nft-minter",
+    "overall_severity": "critical",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker can inspect `frontend/.env.example` to identify specific environment variables and secret names (e.g., API keys, RPC endpoints, mnemonic phrases), providing a critical roadmap for locating actual credentials or crafting targeted phishing attacks.",
+        "technique_id": "T1552.001",
+        "severity": "critical",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker can analyze `frontend/package.json` and `frontend/package-lock.json` to identify outdated or vulnerable software dependencies, potentially leading to supply chain attacks or revealing misconfigured build/deployment scripts for CI/CD exploitation.",
+        "technique_id": "T1195.002",
+        "severity": "high",
+        "affected_files": [
+          "frontend/package.json",
+          "frontend/package-lock.json"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker can analyze `Move.toml` to understand the Aptos smart contract's structure, dependencies, and potential on-chain addresses, enabling targeted reconnaissance for smart contract vulnerabilities and exploitation.",
+        "technique_id": "T1580",
+        "severity": "high",
+        "affected_files": [
+          "Move.toml"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "aptos-meme-nft-minter",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T12:00:09.743527Z",
+        "step": 1,
+        "action": "An attacker can inspect `frontend/.env.example` to identify specific environment variables and secret names (e.g., API keys, RPC endpoints, mnemonic phrases), providing a critical roadmap for locating actual credentials or crafting targeted phishing attacks.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T12:00:09.743537Z",
+        "step": 2,
+        "action": "An attacker can analyze `frontend/package.json` and `frontend/package-lock.json` to identify outdated or vulnerable software dependencies, potentially leading to supply chain attacks or revealing misconfigured build/deployment scripts for CI/CD exploitation.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T12:00:09.743540Z",
+        "step": 3,
+        "action": "An attacker can analyze `Move.toml` to understand the Aptos smart contract's structure, dependencies, and potential on-chain addresses, enabling targeted reconnaissance for smart contract vulnerabilities and exploitation.",
+        "status": "success"
+      }
+    ]
+  }
+}

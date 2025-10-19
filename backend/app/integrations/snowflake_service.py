@@ -452,6 +452,44 @@ def fetch_simulation_report(repo_id: str, run_id: str) -> Optional[Dict[str, Any
     return _fetch_report_payload(repo_id, run_id)
 
 
+def fetch_severity_summary() -> Optional[Dict[str, int]]:
+    """Return counts of simulation runs grouped by overall severity."""
+
+    client = init_snowflake()
+    if client is None:
+        return None
+
+    try:
+        with client.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT LOWER(COALESCE(overall_severity, 'unknown')) AS severity,
+                           COUNT(*) AS total
+                    FROM simulation_runs
+                    GROUP BY 1
+                    """
+                )
+                rows = cursor.fetchall() or []
+    except SnowflakeError as exc:
+        logger.error("Failed to fetch severity summary from Snowflake: %s", exc)
+        return None
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(
+            "Unexpected error fetching severity summary from Snowflake",
+            extra={"error": str(exc)},
+        )
+        return None
+
+    summary = {key: 0 for key in ("critical", "high", "medium", "low")}
+    for severity, total in rows:
+        key = str(severity or "").strip().lower()
+        if key in summary:
+            summary[key] = int(total)
+
+    return summary
+
+
 __all__ = [
     "init_snowflake",
     "store_simulation_run",
@@ -459,4 +497,5 @@ __all__ = [
     "store_ai_insight",
     "fetch_latest_simulation_report",
     "fetch_simulation_report",
+    "fetch_severity_summary",
 ]

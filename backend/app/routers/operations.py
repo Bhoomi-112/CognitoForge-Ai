@@ -13,12 +13,12 @@ import logging
 import re
 from collections import Counter
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from fastapi.concurrency import run_in_threadpool
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
 from backend.app.integrations import snowflake_service as snowflake_integration
@@ -33,6 +33,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services import repo_fetcher
 from backend.app.services.gemini_service import generate_attack_plan, generate_ai_insight, generate_gemini_response
+from backend.app.services.gradient_service import run_gradient_task
 from backend.app.services.sandbox_service import run_sandbox_simulation
 from backend.app.services.snowflake_service import find_vulnerabilities_for_repo, list_all_vulnerabilities
 from backend.app.utils.storage import (
@@ -50,6 +51,10 @@ class SimulateAttackRequest(BaseModel):
     repo_id: str
 
 
+class SimulationRunResponse(SimulationRun):
+    gradient: dict[str, object]
+
+
 def _to_dict(model: BaseModel) -> dict[str, object]:
     """Return a plain dict regardless of Pydantic major version."""
 
@@ -62,6 +67,7 @@ def _to_dict(model: BaseModel) -> dict[str, object]:
 logger = logging.getLogger(__name__)
 
 REPO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+SEVERITY_BUCKETS = ("critical", "high", "medium", "low")
 
 
 def _persist_simulation(run: SimulationRun) -> None:
@@ -134,6 +140,30 @@ async def _fetch_report_from_snowflake(repo_id: str, run_id: Optional[str] = Non
     return report
 
 
+def _blank_severity_counts() -> Dict[str, int]:
+    return {severity: 0 for severity in SEVERITY_BUCKETS}
+
+
+def _compute_local_severity_counts() -> Dict[str, int]:
+    """Aggregate severity counts from locally persisted simulations."""
+
+    counts = _blank_severity_counts()
+    directory = ensure_simulation_dir()
+    for file_path in directory.glob("*.json"):
+        try:
+            with file_path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.debug("Skipping unreadable simulation file", extra={"file": str(file_path), "error": str(exc)})
+            continue
+
+        overall = str(payload.get("plan", {}).get("overall_severity") or "").strip().lower()
+        if overall in counts:
+            counts[overall] += 1
+
+    return counts
+
+
 def _validate_repo_id(repo_id: str) -> None:
     """Ensure repository identifiers follow the expected pattern."""
 
@@ -190,12 +220,17 @@ async def upload_repo(payload: RepoUpload) -> dict[str, object]:
         raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
 
 
-@router.post("/simulate_attack", response_model=SimulationRun)
+@router.post("/simulate_attack", response_model=SimulationRunResponse)
 async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
     """Return a mock attack plan and sandbox execution log for the requested repository."""
 
     logger.info("/simulate_attack request received", extra={"repo_id": request.repo_id})
     _validate_repo_id(request.repo_id)
+
+    # Testing instructions:
+    # - After change, run uvicorn and hit:
+    #   `curl -s -X POST http://127.0.0.1:8000/simulate_attack -H "Content-Type: application/json" -d '{"repo_id":"aptos-meme-nft-minter"}' | jq`
+    # - Expected JSON includes top-level "gradient" with "metadata": {"runtime_env": "DigitalOcean Gradient (Simulated)", "instance_type": "g1-small (mock)", "execution_time": <float>}
 
     try:
         plan: AttackPlan = generate_attack_plan(request.repo_id)
@@ -236,8 +271,38 @@ async def simulate_attack(request: SimulateAttackRequest) -> dict[str, object]:
                 affected_file_rows,
             )
 
+        plan_summary = (
+            plan.model_dump().get("overall_severity")
+            if hasattr(plan, "model_dump")
+            else plan.dict().get("overall_severity")
+        )
+        gradient_payload = {
+            "repo_id": request.repo_id,
+            "run_id": run_id,
+            "summary": plan_summary,
+        }
+        try:
+            gradient_result = await run_in_threadpool(
+                run_gradient_task,
+                "ai_insight",
+                gradient_payload,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "Gradient integration failed",
+                extra={"repo_id": request.repo_id, "run_id": run_id, "error": str(exc)},
+            )
+            gradient_result = {"status": "error", "mock": True, "error": str(exc)}
+
+        if gradient_result is None:
+            gradient_result = {"status": "unavailable", "mock": True}
+
+        logger.info("Gradient mock result: %s", gradient_result)
+
         logger.info("/simulate_attack success", extra={"repo_id": request.repo_id, "run_id": run_id})
-        return _to_dict(run_record)
+        response_payload = _to_dict(run_record)
+        response_payload["gradient"] = gradient_result
+        return response_payload
     except HTTPException:
         logger.exception("/simulate_attack failed", extra={"repo_id": request.repo_id})
         raise
@@ -451,6 +516,22 @@ async def get_simulation_report(repo_id: str, run_id: str) -> dict[str, object]:
             extra={"repo_id": repo_id, "run_id": run_id},
         )
         raise HTTPException(status_code=500, detail={"error": "Unexpected server error"}) from exc
+
+
+@router.get("/analytics/summary")
+async def get_analytics_summary() -> Dict[str, int]:
+    """Return distribution of simulations by overall severity."""
+
+    logger.info("/analytics summary request received")
+
+    counts = await run_in_threadpool(snowflake_integration.fetch_severity_summary)
+    if counts:
+        logger.info("/analytics summary served via Snowflake", extra={"counts": counts})
+        return counts
+
+    counts = await run_in_threadpool(_compute_local_severity_counts)
+    logger.info("/analytics summary served via local fallback", extra={"counts": counts})
+    return counts
 
 
 # ==============================================================================

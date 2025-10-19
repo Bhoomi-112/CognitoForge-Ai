@@ -3,6 +3,7 @@
 from .snowflake_service import (
     fetch_latest_simulation_report,
     fetch_simulation_report,
+    fetch_severity_summary,
     init_snowflake,
     store_ai_insight,
     store_affected_files,
@@ -12,6 +13,7 @@ from .snowflake_service import (
 __all__ = [
     "fetch_latest_simulation_report",
     "fetch_simulation_report",
+    "fetch_severity_summary",
     "init_snowflake",
     "store_ai_insight",
     "store_affected_files",

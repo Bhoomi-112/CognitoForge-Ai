@@ -1,0 +1,63 @@
+{
+  "repo_id": "aptos-meme-nft-minter",
+  "run_id": "aptos-meme-nft-minter_20251019T114235428668",
+  "timestamp": "2025-10-19T11:42:35.428668",
+  "plan": {
+    "repo_id": "aptos-meme-nft-minter",
+    "overall_severity": "high",
+    "steps": [
+      {
+        "step_number": 1,
+        "description": "An attacker can analyze the `frontend/.env.example` file to identify expected environment variables and potential secret names, which can then be used to search for actual secrets in exposed environments or CI/CD logs.",
+        "technique_id": "T1592.001",
+        "severity": "high",
+        "affected_files": [
+          "frontend/.env.example"
+        ]
+      },
+      {
+        "step_number": 2,
+        "description": "An attacker can examine `frontend/package.json` and `frontend/package-lock.json` to enumerate all project dependencies and their versions, enabling a search for known vulnerabilities (CVEs) that could lead to supply chain attacks or client-side exploits.",
+        "technique_id": "T1588.006",
+        "severity": "high",
+        "affected_files": [
+          "frontend/package.json",
+          "frontend/package-lock.json"
+        ]
+      },
+      {
+        "step_number": 3,
+        "description": "An attacker can review `Move.toml` to gather critical information about the Aptos smart contract's structure, dependencies, and build configuration, which can be leveraged to discover potential logic flaws or attack surfaces within the deployed blockchain modules.",
+        "technique_id": "T1592.002",
+        "severity": "medium",
+        "affected_files": [
+          "Move.toml"
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "repo_id": "aptos-meme-nft-minter",
+    "summary": "Simulated attack executed successfully in isolated sandbox.",
+    "logs": [
+      {
+        "timestamp": "2025-10-19T11:42:35.428653Z",
+        "step": 1,
+        "action": "An attacker can analyze the `frontend/.env.example` file to identify expected environment variables and potential secret names, which can then be used to search for actual secrets in exposed environments or CI/CD logs.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T11:42:35.428662Z",
+        "step": 2,
+        "action": "An attacker can examine `frontend/package.json` and `frontend/package-lock.json` to enumerate all project dependencies and their versions, enabling a search for known vulnerabilities (CVEs) that could lead to supply chain attacks or client-side exploits.",
+        "status": "success"
+      },
+      {
+        "timestamp": "2025-10-19T11:42:35.428664Z",
+        "step": 3,
+        "action": "An attacker can review `Move.toml` to gather critical information about the Aptos smart contract's structure, dependencies, and build configuration, which can be leveraged to discover potential logic flaws or attack surfaces within the deployed blockchain modules.",
+        "status": "success"
+      }
+    ]
+  }
+}

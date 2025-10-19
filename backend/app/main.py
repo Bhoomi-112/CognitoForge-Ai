@@ -8,8 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.core.settings import get_settings
-from backend.app.routers import operations, ai
 from backend.app.integrations import init_snowflake
+from backend.app.routers import ai, operations
+from backend.app.services.gradient_service import init_gradient, run_gradient_task
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -56,6 +57,12 @@ async def startup_event() -> None:
             logger.debug("Snowflake integration skipped (configuration missing or connector absent)")
     except Exception as exc:  # noqa: BLE001
         logger.exception("Snowflake integration initialisation failed", extra={"error": str(exc)})
+
+    try:
+        init_gradient()
+        logger.debug("Gradient task handler ready", extra={"callable": run_gradient_task.__name__})
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Gradient integration initialisation failed", extra={"error": str(exc)})
 
 
 @app.get("/health")
